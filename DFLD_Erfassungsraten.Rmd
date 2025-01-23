@@ -187,7 +187,8 @@ read_csv_file <- function(file) {
     delim = ";",
     escape_double = FALSE,
     col_types = cols(StatNr = col_number(),Lfd = col_number()),
-    trim_ws = TRUE
+    trim_ws = TRUE,
+    locale=locale(encoding = 'ISO8859-1')#nötig, da sonst die Umlaute nicht gelesen werden können.
   )
 }
 
@@ -201,15 +202,7 @@ all_data <-csv_files %>%
   filter(check==1)
 ```
 
-Übersicht über die Daten.
-
-```{r uebersicht}
-
-all_data %>% summary()
-```
-
-
-Scatterplots in \@ref(fig:Scatterplots).
+Graphische Darstellung in Abb. \@ref(fig:Scatterplots).
 
 ```{r Scatterplots, fig.cap="Graphische Darstellung der Daten", fig.width=6.7,fig.height=4}
 
@@ -217,12 +210,9 @@ all_data<-all_data %>%
   mutate(AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(AbAnDatum, AbAnZeit))))
 
 all_data %>% 
-  ggplot(aes(x=AbAnDatetime,y=LasMax,color=Fangradius))+
+  ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
   geom_point()+
-  facet_wrap(vars(StatNr))
-
-all_data$StatNam %>% unique()
-
+  facet_wrap(vars(StatNam))
 ```
 
 
