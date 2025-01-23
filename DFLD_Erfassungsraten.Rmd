@@ -115,7 +115,6 @@ library(readxl)
 
 ```{r logo, eval=FALSE, fig.align='center', include=FALSE}
 # Einbinden des Logos HLNUG auf das Deckblatt
-# Derzeit deaktiviert
 knitr::include_graphics("external_img/logo.jpg")
 ```
 
@@ -161,5 +160,15 @@ Der Code der Analyse und die verwendeten Eingangsdaten wird unter dem öffentlic
 # Ausgangsfrage
 
 Welcher Einfluss hat der Fangradius und weitere Parameter auf die Erfassungsrate der DFLD-Messstationen.
+
+# Betrachtete Messstationen
+
+Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DFLD Stationen ... betrachet.
+
+```{r MPKarte, fig.cap="Karte der Messpunkte", fig.width=6.7,fig.height=4}
+
+knitr::include_graphics("external_img/Messpunktkarte.png")
+
+```
 
 # Literatur
