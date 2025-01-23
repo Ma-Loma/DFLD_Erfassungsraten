@@ -1,0 +1,165 @@
+---
+title: "Bericht Erfassungsraten von DFLD Stationen"
+subtitle: "Analyse der von Herrn Weise gelieferten Daten auf Erfassungsquote als Funktion des Fangradius"
+author: "Matthias Lochmann (Hessisches Landesamt für Naturschutz, Umwelt und Geologie)"
+link citations: true
+header-includes:
+   - \usepackage{placeins}
+output:
+bibliography: bibliography/DFLD_Erfassungsraten.bib
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+#update.packages(ask = FALSE)
+# Laden der für das Dokument benötigten Pakete
+library(knitr)
+library(stringr)
+library(kableExtra)
+library(pander)
+library(dplyr)
+library(readr)
+library(plotly)
+library(flextable)
+library(tidyr)
+library(pdftools)
+library(rsvg)
+library(cachem)
+library(fastmap)
+
+
+
+
+
+# Setzen von globalen Chunkoptionen, jeder Chunk gibt per default nicht den Code aus, keine R messages und auch keine R warnings
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.align = "left")
+```
+
+```{r equationFunctions, cache=TRUE, include=FALSE}
+# Definition von R Funktionen die zur Nummerierung von R Funktionen im Dokument verwendet werden.
+
+is_docx_output <- function (fmt = knitr:::pandoc_to()) {
+  if (length(fmt) == 0) {
+    return(FALSE)
+  } else {
+    return(fmt == "docx")
+  }
+}
+numberEq.docx <- function (eq, lab, envir = docx.eqcounter) {
+  assign(x = "counter", value = get(x = "counter", envir = envir)+1, envir = envir)
+  assign(x = gsub("eq:", "", lab), value = get(x = "counter", envir = envir), envir = envir)
+  lab <- get("counter", envir = envir)
+  return(paste0('$$', eq, '\\;\\;\\;\\;(', lab, ')', '$$'))
+}
+
+labEq.docx <- function (lab, envir = docx.eqcounter) {
+  return(paste0('(', get(x = gsub("eq:", "", lab), envir = envir), ')'))
+}
+
+docx.eqcounter <- new.env()
+docx.eqcounter$counter <- 0
+docx.eqcounter$binomial
+
+```
+
+```{r imageFunctions, cache=TRUE, include=FALSE}
+# Defintion von R Funktionen die bei der Einbindung von svg und pdf Bildern unterstützen.
+
+get_image_info <- function(path, type = "svg") {
+  
+  if (!type %in% c("svg", "pdf")) stop("type needs to be a svg or pdf")
+  
+  if (type == "svg") {
+    info <- magick::image_read_svg(path) %>% 
+      magick::image_info()
+  }
+  
+  if (type == "pdf") {
+    info <- magick::image_read_pdf(path) %>% 
+      magick::image_info()
+  }
+  
+  density <- info %>% 
+    dplyr::pull(density) %>% 
+    strsplit("x") %>% 
+    unlist() %>% 
+    head(1) %>% 
+    as.numeric()
+  
+  width <- info$width/density
+  height <- info$height/density
+  
+  return(list(
+    density = density,
+    width = width,
+    height = height
+  ))
+}
+
+```
+
+```{r AnalyseSetup, include=FALSE}
+
+# Laden der speziell für die Analyse benötigten zusätzlichen Pakete
+library(lubridate)
+library(directlabels)
+library(VennDiagram)
+library(readxl)
+
+
+```
+
+```{r logo, eval=FALSE, fig.align='center', include=FALSE}
+# Einbinden des Logos HLNUG auf das Deckblatt
+# Derzeit deaktiviert
+knitr::include_graphics("external_img/logo.jpg")
+```
+
+```{=html}
+<!--
+manueller Seitenumbruch mit \newpage
+-->
+```
+\newpage
+
+```{=html}
+<!--
+Einfügen eines Inhaltsverzeichnis, die Schreibweise benötigt das Paket officedown, 
+das Paket ermöglicht uns eine praktische Einbindung von Abbildungsverzeichnissen und Tabellenverzeichnissen, "seq_id: 'fig'" definiert das in das Verzeichnis Abbildungen eingetragen werden sollen, "seq_id: 'tab' das Tabellen eingetragen werden sollen
+-->
+```
+[**Table of content**]{.underline}
+
+<!---BLOCK_TOC--->
+
+```{=html}
+<!--
+"##" für Überschrift Typ 2
+-->
+```
+[**List of figures**]{.underline}
+
+<!---BLOCK_TOC{seq_id: 'fig'}--->
+
+\listoffigures
+
+[**List of tables**]{.underline}
+
+<!---BLOCK_TOC{seq_id: 'tab'}--->
+
+\listoftables
+
+\newpage
+
+Diese Analyse wurde in RMarkdown geschrieben. Zum technischen Hintergrund siehe @xie2015.
+Der Code der Analyse und die verwendeten Eingangsdaten wird unter dem öffentlich zugänglichen Repositorium  https://github.com/Ma-Loma/DFLD_Erfassungsraten.git versioniert.
+
+# Ausgangsfrage
+
+Welcher Einfluss hat der Fangradius und weitere Parameter auf die Erfassungsrate der DFLD-Messstationen.
+
+# Literatur
