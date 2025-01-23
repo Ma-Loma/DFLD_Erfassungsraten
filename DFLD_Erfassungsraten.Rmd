@@ -171,4 +171,59 @@ knitr::include_graphics("external_img/Messpunktkarte.png")
 
 ```
 
+## Einlesen der CSV-Dateien
+
+```{r read-csv-files, message=FALSE, warning=FALSE}
+# Pfad zum Datenordner
+data_path <- "data"
+
+# Liste aller CSV-Dateien im Datenordner
+csv_files <- list.files(path = data_path, pattern = "*.csv", full.names = TRUE)
+
+# Funktion zum Einlesen einer einzelnen CSV-Datei
+read_csv_file <- function(file) {
+  read_delim(
+    file,
+    delim = ";",
+    escape_double = FALSE,
+    col_types = cols(StatNr = col_number(),Lfd = col_number()),
+    trim_ws = TRUE
+  )
+}
+
+
+
+# Einlesen aller CSV-Dateien und Zusammenführen in einen Dataframe
+all_data <-csv_files %>% 
+  lapply(., read_csv_file) %>% 
+  bind_rows() %>% 
+  mutate(check=`0`,.keep="unused") %>% 
+  filter(check==1)
+```
+
+Übersicht über die Daten.
+
+```{r uebersicht}
+
+all_data %>% summary()
+```
+
+
+Scatterplots in \@ref(fig:Scatterplots).
+
+```{r Scatterplots, fig.cap="Graphische Darstellung der Daten", fig.width=6.7,fig.height=4}
+
+all_data<-all_data %>%
+  mutate(AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(AbAnDatum, AbAnZeit))))
+
+all_data %>% 
+  ggplot(aes(x=AbAnDatetime,y=LasMax,color=Fangradius))+
+  geom_point()+
+  facet_wrap(vars(StatNr))
+
+all_data$StatNam %>% unique()
+
+```
+
+
 # Literatur
