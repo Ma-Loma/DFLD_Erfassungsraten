@@ -161,17 +161,10 @@ Der Code der Analyse und die verwendeten Eingangsdaten wird unter dem öffentlic
 
 Welcher Einfluss hat der Fangradius und weitere Parameter auf die Erfassungsrate der DFLD-Messstationen.
 
-# Betrachtete Messstationen
 
-Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DFLD Stationen ... betrachet.
+# Einlesen der CSV-Dateien
 
-```{r MPKarte, fig.cap="Karte der Messpunkte", fig.width=6.7,fig.height=4}
-
-knitr::include_graphics("external_img/Messpunktkarte.png")
-
-```
-
-## Einlesen der CSV-Dateien
+Die von Herrn Weise bereitgestellten Daten lese ich in R ein.
 
 ```{r read-csv-files, message=FALSE, warning=FALSE}
 # Pfad zum Datenordner
@@ -200,8 +193,23 @@ all_data <-csv_files %>%
   bind_rows() %>% 
   mutate(check=`0`,.keep="unused") %>% 
   filter(check==1)
+
+Stationsliste<-all_data$StatNam %>% unique()
+
 ```
 
+
+# Betrachtete Messstationen
+
+Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DFLD Stationen ```r Stationsliste``` betrachet.
+
+
+
+```{r MPKarte, fig.cap="Karte der Messpunkte", fig.width=6.7,fig.height=4}
+
+knitr::include_graphics("external_img/Messpunktkarte.png")
+
+```
 Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach Analysemethode in Abb. \@ref(fig:Scatterplots2) und nach Messpegel in Abb. \@ref(fig:Scatterplots3).
 
 ```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=4}
