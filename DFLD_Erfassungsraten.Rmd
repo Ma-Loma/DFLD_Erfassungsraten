@@ -186,7 +186,7 @@ read_csv_file <- function(file) {
     file,
     delim = ";",
     escape_double = FALSE,
-    col_types = cols(StatNr = col_number(),Lfd = col_number()),
+    col_types = cols(StatNr = col_number(),Lfd = col_number(),`ts(anf)` = col_time(format = "%H:%M:%S"),`ts(end)` = col_time(format = "%H:%M:%S")),
     trim_ws = TRUE,
     locale=locale(encoding = 'ISO8859-1')#nötig, da sonst die Umlaute nicht gelesen werden können.
   )
@@ -202,18 +202,59 @@ all_data <-csv_files %>%
   filter(check==1)
 ```
 
-Graphische Darstellung in Abb. \@ref(fig:Scatterplots).
+Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach Analysemethode in Abb. \@ref(fig:Scatterplots2) und nach Messpegel in Abb. \@ref(fig:Scatterplots3).
 
-```{r Scatterplots, fig.cap="Graphische Darstellung der Daten", fig.width=6.7,fig.height=4}
+```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=4}
+all_data <- all_data %>%
+  mutate(
+    AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(AbAnDatum, AbAnZeit))),
+    tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
+      AbAnDatum, `ts(anf)`
+    ))),
+    tsEndDatetime = lubridate::as_datetime(dmy_hms(paste(
+      AbAnDatum, `ts(end)`
+    ))),
+    .keep = "unused"
+  ) %>%
+  mutate(DEN = case_when(
+    hour(tsAnfDatetime) %in% 6:17  ~ "D",
+    # Day: 6 AM to 6 PM
+    hour(tsAnfDatetime) %in% 18:21 ~ "E",
+    # Evening: 6 PM to 10 PM
+    TRUE ~ "N"                  # Night: 10 PM to 6 AM
+  ))
 
-all_data<-all_data %>%
-  mutate(AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(AbAnDatum, AbAnZeit))))
 
 all_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
   geom_point()+
   facet_wrap(vars(StatNam))
+
 ```
+
+
+
+```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
+
+all_data %>% 
+  ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
+  geom_violin()+
+  facet_wrap(vars(StatNam))
+
+```
+
+
+
+```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten nach Schwelle", fig.width=6.7,fig.height=4}
+
+all_data %>% 
+  ggplot(aes(x=DEN,y=Messschwelle,fill=factor(Typ)))+
+  geom_violin()+
+  facet_wrap(vars(StatNam))
+
+```
+
+
 
 
 # Literatur
