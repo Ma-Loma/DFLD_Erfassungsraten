@@ -1,5 +1,6 @@
 *.Rproj
 ~*.docx
+/data/details/*
 
 # History files
 .Rhistory

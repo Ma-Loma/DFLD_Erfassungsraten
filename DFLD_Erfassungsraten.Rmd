@@ -164,37 +164,82 @@ Welcher Einfluss hat der Fangradius und weitere Parameter auf die Erfassungsrate
 
 # Einlesen der CSV-Dateien
 
-Die von Herrn Weise bereitgestellten Daten lese ich in R ein.
+Von den von Herrn Weise bereitgestellten Daten lese ich zunächst nur die mit von ihm präferierten Fangradien in R ein.
 
 ```{r read-csv-files, message=FALSE, warning=FALSE}
 # Pfad zum Datenordner
 data_path <- "data"
+#Daten mit von Herrn Weise präferierten Fangradien
+
+#Daten mit von Herrn Weise präferierten Fangradien
 
 # Liste aller CSV-Dateien im Datenordner
-csv_files <- list.files(path = data_path, pattern = "*.csv", full.names = TRUE)
+csv_files <- function(path) {
+  list.files(path = path,
+             pattern = "*.csv",
+             full.names = TRUE)
+}
+
+csv_files(data_path)
 
 # Funktion zum Einlesen einer einzelnen CSV-Datei
 read_csv_file <- function(file) {
+  col_names <- names(spec_delim(file, delim = ";")$cols)
+  # Define col_types dynamically
+  meine_Col_types <-
+    cols(!!!setNames(lapply(col_names, function(col) {
+      if (grepl("Nr", col) | grepl("Lfd", col)) {
+        col_number()
+      } else if (grepl("ts", col)|grepl("Zeit", col)) {
+        col_time(format = "%H:%M:%S")
+      } else {
+        col_guess()
+      }
+    }),
+    col_names))
   read_delim(
     file,
     delim = ";",
     escape_double = FALSE,
-    col_types = cols(StatNr = col_number(),Lfd = col_number(),`ts(anf)` = col_time(format = "%H:%M:%S"),`ts(end)` = col_time(format = "%H:%M:%S")),
+    col_types = meine_Col_types,
+    #cols(StatNr = col_number(),Lfd = col_number(),`ts(anf)` = col_time(format = "%H:%M:%S"),`ts(end)` = col_time(format = "%H:%M:%S")),
     trim_ws = TRUE,
-    locale=locale(encoding = 'ISO8859-1')#nötig, da sonst die Umlaute nicht gelesen werden können.
+    locale = locale(encoding = 'ISO8859-1')#nötig, da sonst die Umlaute nicht gelesen werden können.
   )
 }
 
 
+# Einlesen der CSV-Dateien mit präferierten Fangradien und zusammenführen in einen Dataframe
+meas_data <- function(pathlist) {
+    lapply(pathlist, read_csv_file) %>%
+    bind_rows() %>%
+    mutate(check = `0`, .keep = "unused") %>%
+    filter(check == 1)
+}
 
-# Einlesen aller CSV-Dateien und Zusammenführen in einen Dataframe
-all_data <-csv_files %>% 
+
+preaf_data <- csv_files(data_path) %>%
+  .[!str_detect(., "full")] %>%
+  meas_data(.)
+
+Stationsliste<-preaf_data$StatNam %>% unique()
+
+full_data<-csv_files(data_path) %>%
+  .[str_detect(., "full")] %>%
+  meas_data(.) %>% 
+  mutate(LasMax=`LasMax(Mss)`,.keep="unused")
+
+```
+
+
+```{r read-rest, message=FALSE, warning=FALSE}
+
+# Einlesen der CSV-Dateien mit präferierten Fangradien und zusammenführen in einen Dataframe
+preaf_data <-preaf_csv_files %>% 
   lapply(., read_csv_file) %>% 
   bind_rows() %>% 
   mutate(check=`0`,.keep="unused") %>% 
   filter(check==1)
-
-Stationsliste<-all_data$StatNam %>% unique()
 
 ```
 
@@ -213,7 +258,7 @@ knitr::include_graphics("external_img/Messpunktkarte.png")
 Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach Analysemethode in Abb. \@ref(fig:Scatterplots2) und nach Messpegel in Abb. \@ref(fig:Scatterplots3).
 
 ```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=4}
-all_data <- all_data %>%
+preaf_data <- preaf_data %>%
   mutate(
     AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(AbAnDatum, AbAnZeit))),
     tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
@@ -233,7 +278,7 @@ all_data <- all_data %>%
   ))
 
 
-all_data %>% 
+preaf_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
   geom_point()+
   facet_wrap(vars(StatNam))
@@ -244,7 +289,7 @@ all_data %>%
 
 ```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
 
-all_data %>% 
+preaf_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
   geom_violin()+
   facet_wrap(vars(StatNam))
@@ -255,8 +300,8 @@ all_data %>%
 
 ```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten nach Schwelle", fig.width=6.7,fig.height=4}
 
-all_data %>% 
-  ggplot(aes(x=DEN,y=Messschwelle,fill=factor(Typ)))+
+preaf_data %>% 
+  ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
   geom_violin()+
   facet_wrap(vars(StatNam))
 
