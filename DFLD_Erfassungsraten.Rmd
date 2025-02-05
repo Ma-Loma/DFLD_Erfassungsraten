@@ -416,7 +416,7 @@ stat <-
   left_join(Erfassungsdauern) %>%
   mutate(Dauer=NULL) %>% 
   left_join(DauernInIntervallenDF) %>% 
-  group_by(StatNam, Fangradius,DEN) %>%
+  group_by(StatNam, Fangradius,DEN,WTC) %>%
   summarise(
     n1 = sum(StatusNr == 0),
     n2 = n(),
@@ -441,7 +441,7 @@ stat %>%
   ggplot(aes(x = Fangradius, y = Leq, color = DEN)) +
   geom_line() +
   geom_point() +
-  facet_grid(cols = vars(StatNam))
+  facet_grid(cols = vars(StatNam),rows = vars(WTC))
 
 ```
 
@@ -453,19 +453,19 @@ stat %>%
   ggplot(aes(x=Fangradius,y=n1/n2,color=DEN))+
   geom_line()+
   geom_point()+
-  facet_grid(cols=vars(StatNam))
+  facet_grid(cols = vars(StatNam),rows = vars(WTC))
 
 ```
 
 Nun n1 und n2.
 
-```{r n1n2}
+```{r n1n2, fig.width=6.7,fig.height=10}
 
 stat %>% 
   pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
   ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
   geom_line()+
-  facet_grid(cols=vars(StatNam),rows=vars(`Größe`))
+  facet_grid(cols=vars(StatNam),rows=vars(`Größe`,WTC),scales = "free")
 
 ```
 
