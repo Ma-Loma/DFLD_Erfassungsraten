@@ -12,7 +12,6 @@ rmarkdown::render("DFLD_Erfassungsraten.rmd",
                     reference_docx = "templates/Mittelteil.docx"
                   ), 
                   output_file = "export/DFLD_Erfassungsraten.docx")
-                  #output_file = "export/DFLD_Erfassungsraten.docx")
 
 # erstellen eines html dokuments ------------------------------
 rmarkdown::render("DFLD_Erfassungsraten.rmd",
