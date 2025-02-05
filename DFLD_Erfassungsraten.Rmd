@@ -27,7 +27,7 @@ library(pdftools)
 library(rsvg)
 library(cachem)
 library(fastmap)
-
+library(scales)
 
 
 
@@ -166,7 +166,7 @@ Welcher Einfluss hat der Fangradius und weitere Parameter auf die Erfassungsrate
 
 Von den von Herrn Weise bereitgestellten Daten lese ich zunächst nur die mit von ihm präferierten Fangradien in R ein.
 
-```{r read-csv-files, message=FALSE, warning=FALSE}
+```{r read-csv-files}
 # Pfad zum Datenordner
 data_path <- "data"
 #Daten mit von Herrn Weise präferierten Fangradien
@@ -208,7 +208,6 @@ read_csv_file <- function(file) {
   )
 }
 
-
 # Einlesen der CSV-Dateien mit präferierten Fangradien und zusammenführen in einen Dataframe
 meas_data <- function(pathlist) {
     lapply(pathlist, read_csv_file) %>%
@@ -225,21 +224,41 @@ preaf_data <- csv_files(data_path) %>%
 Stationsliste<-preaf_data$StatNam %>% unique()
 
 full_data<-csv_files(data_path) %>%
-  .[str_detect(., "full")] %>%
+  .[str_detect(., "ansi")] %>%
   meas_data(.) %>% 
   mutate(LasMax=`LasMax(Mss)`,.keep="unused")
 
 ```
 
+In diesen Daten habe ich dann noch die Zeitdaten besser für R verarbeitbar gemacht.
 
-```{r read-rest, message=FALSE, warning=FALSE}
+```{r}
+zeitstempeln <- function(data_in) {
+  data_out <- data_in %>%
+    mutate(
+      AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(
+        AbAnDatum, AbAnZeit
+      )),tz="Europe/Berlin"),
+      tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
+        AbAnDatum, `ts(anf)`
+      )),tz="Europe/Berlin"),
+      tsEndDatetime = lubridate::as_datetime(dmy_hms(paste(
+        AbAnDatum, `ts(end)`
+      )),tz="Europe/Berlin"),
+      .keep = "unused"
+    ) %>%
+    mutate(DEN = case_when(
+      hour(tsAnfDatetime) %in% 6:17  ~ "D",
+      # Day: 6 AM to 6 PM
+      hour(tsAnfDatetime) %in% 18:21 ~ "E",
+      # Evening: 6 PM to 10 PM
+      TRUE ~ "N"                  # Night: 10 PM to 6 AM
+    ))
+  return(data_out)
+}
 
-# Einlesen der CSV-Dateien mit präferierten Fangradien und zusammenführen in einen Dataframe
-preaf_data <-preaf_csv_files %>% 
-  lapply(., read_csv_file) %>% 
-  bind_rows() %>% 
-  mutate(check=`0`,.keep="unused") %>% 
-  filter(check==1)
+preaf_data<-zeitstempeln(preaf_data)
+full_data<-zeitstempeln(full_data)
 
 ```
 
@@ -255,28 +274,13 @@ Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DF
 knitr::include_graphics("external_img/Messpunktkarte.png")
 
 ```
+
 Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach Analysemethode in Abb. \@ref(fig:Scatterplots2) und nach Messpegel in Abb. \@ref(fig:Scatterplots3).
 
-```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=4}
-preaf_data <- preaf_data %>%
-  mutate(
-    AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(AbAnDatum, AbAnZeit))),
-    tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
-      AbAnDatum, `ts(anf)`
-    ))),
-    tsEndDatetime = lubridate::as_datetime(dmy_hms(paste(
-      AbAnDatum, `ts(end)`
-    ))),
-    .keep = "unused"
-  ) %>%
-  mutate(DEN = case_when(
-    hour(tsAnfDatetime) %in% 6:17  ~ "D",
-    # Day: 6 AM to 6 PM
-    hour(tsAnfDatetime) %in% 18:21 ~ "E",
-    # Evening: 6 PM to 10 PM
-    TRUE ~ "N"                  # Night: 10 PM to 6 AM
-  ))
 
+
+
+```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4, cache=TRUE}
 
 preaf_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
@@ -287,7 +291,20 @@ preaf_data %>%
 
 
 
-```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
+```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=5.5, cache=TRUE}
+
+full_data %>% 
+  filter(StatusNr==0) %>% 
+  ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Typ)))+
+  geom_point()+
+  facet_grid(cols=vars(StatNam),rows=vars(Fangradius))
+
+```
+
+
+
+
+```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4, cache=TRUE}
 
 preaf_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
@@ -298,7 +315,7 @@ preaf_data %>%
 
 
 
-```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten nach Schwelle", fig.width=6.7,fig.height=4}
+```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach Schwelle", fig.width=6.7,fig.height=4, cache=TRUE}
 
 preaf_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
@@ -307,7 +324,135 @@ preaf_data %>%
 
 ```
 
+# Formeln
 
+Der Dauerschalldruckpegel gemäß DIN 45643:2011 ist definiert als
+$$
+L_{p,A,eq,T} = 10\lg \left(\frac{t_0}{T}\sum_{I=1}^{N} 10^{L_{p,A,E,i}/10\,\textrm{dB}}\right)\,\textrm{dB}
+$$
+mit 
+$$
+L_{p,A,E,i}=10 \lg \left(\frac{1}{t_0}\int \frac{P_{A,i}(t)^2}{p_0^{\;2}}\right)\;(=\mathrm{SEL}).
+$$
+```{r}
+
+t0=as.duration(1)
+
+dauerschallpegel <- function(SEL,T) {
+  10*log10(t0/T * sum(10^(SEL/10),na.rm = T))
+}
+
+
+Erfassungsdauern<-
+  full_data %>% 
+  group_by(StatNam) %>%
+  arrange(AbAnDatetime) %>%
+  summarise(
+    Anfang = first(AbAnDatetime),
+    AnfangDatum = Anfang %>% date(),
+    Ende = last(AbAnDatetime),
+    EndeDatum = Ende %>% date(),
+    Dauer = lubridate::interval(AnfangDatum, EndeDatum) %>%
+      lubridate::as.duration()
+  )
+
+# eins<- full_data %>%
+#   arrange(AbAnDatetime) %>%
+#   first() %>%
+#   .$AbAnDatetime %>%
+#   date()
+# 
+# zwei<- full_data %>%
+#   arrange(AbAnDatetime) %>%
+#   last() %>%
+#   .$AbAnDatetime %>%
+#   date()
+# 
+# interval(eins,zwei)
+# 
+DEN <-  data.frame(
+  ZeitLabel = c("D", "E", "N", "Tag"),
+  Anfang = c("6:00:00", "18:00:00", "22:00:00", "6:00:00"),
+  Periodenlaenge = c(hours(12), hours(4), hours(8), hours(16))
+)
+
+#seq(Erfassungsdauern$AnfangDatum %>% first(),Erfassungsdauern$EndeDatum %>% first(),by="day")
+
+DENIntervalle <-
+  function(tagestafel, Anfangsdatum, Endedatum) {
+    tagestafel %>%
+      crossing(Datum = seq(Anfangsdatum, Endedatum, by = "day") %>%
+                 date()) %>%
+      mutate(
+        IntervallAnf = paste(Datum, Anfang) %>% lubridate::as_datetime(tz = "Europe/Berlin"),
+        IntervallEnde = IntervallAnf + Periodenlaenge,
+        Intervall = IntervallAnf %--% IntervallEnde
+      )  %>%
+      mutate(Dauer = Intervall / dseconds(1)) %>% # Das gibt die reale Dauer heraus; unterscheidet sich also bei Zeitumstellung.
+     select(dazu, ZeitLabel, Intervall) %>%
+    #  pivot_wider(names_from = ZeitLabel, values_from = Intervall)
+    #   select(-dazu)
+  }
+
+# #Bei Zeitumstellung ist Dauer länger oder kürzer
+# DENIntervalle(
+#     DEN,
+#     dmy("29.03.2025"),
+#     dmy("30.03.2025")) %>% select(-IntervallAnf,-IntervallEnde)
+
+
+stat <-
+  full_data %>%
+  left_join (Erfassungsdauern) %>%
+  group_by(StatNam, Fangradius) %>%
+  summarise(
+    n1 = sum(StatusNr == 0),
+    n2 = n(),
+    Erfassungsquote = scales::percent(n1 / n2),
+    Anfang = first(Anfang),
+    Ende = first(Ende),
+    Dauer = first(Dauer),
+    Leq = dauerschallpegel(SEL, Dauer)
+  )
+
+left_join(full_data,Erfassungsdauern) %>% 
+  ggplot(aes(x=Fangradius,y=Dauer))+
+  geom_line()+
+  facet_wrap(vars(StatNam))
+
+```
+
+
+
+# Statistiken
+
+
+
+```{r Statistiken}
+
+statN1N2<-full_data %>%
+  group_by(Fangradius, StatNam) %>%
+  summarise(n1 = sum(StatusNr == 0),n2=n(),Erfassungsquote=100*n1/n2, mittlererLASmax = mean(LasMax))
+
+statN1N2 %>% 
+  ggplot(aes(x=Fangradius,y=Erfassungsquote))+
+  geom_line()+
+  facet_wrap(vars(StatNam))
+
+statN1N2 %>% 
+  pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
+  ggplot(aes(x=Fangradius,y=Wert,color=Größe))+
+  geom_line()+
+  facet_grid(cols=vars(StatNam))
+
+statN1N2 %>% 
+  pivot_longer(Erfassungsquote:mittlererLASmax,names_to = "Größe",values_to = "Wert") %>% 
+  ggplot(aes(x=Fangradius,y=Wert,color=Größe))+
+  geom_line()+
+  facet_grid(cols=vars(StatNam))
+
+
+```
 
 
 # Literatur
