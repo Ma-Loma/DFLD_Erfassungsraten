@@ -280,7 +280,7 @@ Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach An
 
 
 
-```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4, cache=TRUE}
+```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4}
 
 preaf_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
@@ -291,7 +291,7 @@ preaf_data %>%
 
 
 
-```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=5.5, cache=TRUE}
+```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=5.5}
 
 full_data %>% 
   filter(StatusNr==0) %>% 
@@ -304,7 +304,7 @@ full_data %>%
 
 
 
-```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4, cache=TRUE}
+```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
 
 preaf_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
@@ -315,7 +315,7 @@ preaf_data %>%
 
 
 
-```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach Schwelle", fig.width=6.7,fig.height=4, cache=TRUE}
+```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach Schwelle", fig.width=6.7,fig.height=4}
 
 preaf_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
@@ -356,21 +356,7 @@ Erfassungsdauern<-
       lubridate::as.duration()
   )
 
-# eins<- full_data %>%
-#   arrange(AbAnDatetime) %>%
-#   first() %>%
-#   .$AbAnDatetime %>%
-#   date()
-# 
-# zwei<- full_data %>%
-#   arrange(AbAnDatetime) %>%
-#   last() %>%
-#   .$AbAnDatetime %>%
-#   date()
-# 
-# interval(eins,zwei)
-# 
-DEN <-  data.frame(
+DENtafel <-  data.frame(
   ZeitLabel = c("D", "E", "N", "Tag"),
   Anfang = c("6:00:00", "18:00:00", "22:00:00", "6:00:00"),
   Periodenlaenge = c(hours(12), hours(4), hours(8), hours(16))
@@ -379,8 +365,8 @@ DEN <-  data.frame(
 #seq(Erfassungsdauern$AnfangDatum %>% first(),Erfassungsdauern$EndeDatum %>% first(),by="day")
 
 DENIntervalle <-
-  function(tagestafel, Anfangsdatum, Endedatum) {
-    tagestafel %>%
+  function( Anfangsdatum, Endedatum) {
+    DENtafel %>%
       crossing(Datum = seq(Anfangsdatum, Endedatum, by = "day") %>%
                  date()) %>%
       mutate(
@@ -389,22 +375,48 @@ DENIntervalle <-
         Intervall = IntervallAnf %--% IntervallEnde
       )  %>%
       mutate(Dauer = Intervall / dseconds(1)) %>% # Das gibt die reale Dauer heraus; unterscheidet sich also bei Zeitumstellung.
-     select(dazu, ZeitLabel, Intervall) %>%
-    #  pivot_wider(names_from = ZeitLabel, values_from = Intervall)
-    #   select(-dazu)
+      select(ZeitLabel,Datum, Intervall,Dauer)
   }
 
-# #Bei Zeitumstellung ist Dauer länger oder kürzer
-# DENIntervalle(
-#     DEN,
-#     dmy("29.03.2025"),
-#     dmy("30.03.2025")) %>% select(-IntervallAnf,-IntervallEnde)
+#Bei Zeitumstellung ist die Dauer länger oder kürzer
+DENIntervalle(
+    dmy("29.03.2025"),
+    dmy("30.03.2025"))
 
+eins <- Erfassungsdauern[[1, "AnfangDatum"]]
+zwei <- Erfassungsdauern[[1, "EndeDatum"]]
+
+DauernInIntervallen <- function(erstesDatum, zweitesDatum,label) {
+  DENIntervalle(erstesDatum, zweitesDatum) %>%
+    group_by(ZeitLabel) %>%
+    summarise(Gesamtdauer = sum(Dauer)) %>%
+    pivot_wider(names_from = ZeitLabel,values_from = Gesamtdauer) %>%
+    mutate(StatNam=label)
+}
+DauernInIntervallen(eins,zwei,"Spaß")
+
+DauernInIntervallenDF <- mapply(
+  DauernInIntervallen,
+  Erfassungsdauern$AnfangDatum,
+  Erfassungsdauern$EndeDatum,
+  Erfassungsdauern$StatNam
+) %>% t %>%
+  as.data.frame %>%
+  mutate(
+    StatNam = unlist(StatNam),
+    D = unlist(D),
+    E = unlist(E),
+    N = unlist(N),
+    Tag = unlist(Tag)
+  ) %>% 
+  pivot_longer(!StatNam,names_to = "DEN",values_to = "Dauer")
 
 stat <-
   full_data %>%
-  left_join (Erfassungsdauern) %>%
-  group_by(StatNam, Fangradius) %>%
+  left_join(Erfassungsdauern) %>%
+  mutate(Dauer=NULL) %>% 
+  left_join(DauernInIntervallenDF) %>% 
+  group_by(StatNam, Fangradius,DEN) %>%
   summarise(
     n1 = sum(StatusNr == 0),
     n2 = n(),
@@ -413,44 +425,47 @@ stat <-
     Ende = first(Ende),
     Dauer = first(Dauer),
     Leq = dauerschallpegel(SEL, Dauer)
-  )
+    )
 
-left_join(full_data,Erfassungsdauern) %>% 
-  ggplot(aes(x=Fangradius,y=Dauer))+
-  geom_line()+
-  facet_wrap(vars(StatNam))
+
 
 ```
 
 
+# Graphen
 
-# Statistiken
+Dauerschallpegel aller Flieger
 
+```{r Leq}
+stat %>%
+  ggplot(aes(x = Fangradius, y = Leq, color = DEN)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(cols = vars(StatNam))
 
+```
 
-```{r Statistiken}
+Erfassungsquote aller Flieger
 
-statN1N2<-full_data %>%
-  group_by(Fangradius, StatNam) %>%
-  summarise(n1 = sum(StatusNr == 0),n2=n(),Erfassungsquote=100*n1/n2, mittlererLASmax = mean(LasMax))
+```{r Erfassungsquote}
 
-statN1N2 %>% 
-  ggplot(aes(x=Fangradius,y=Erfassungsquote))+
+stat %>% 
+  ggplot(aes(x=Fangradius,y=n1/n2,color=DEN))+
   geom_line()+
-  facet_wrap(vars(StatNam))
+  geom_point()+
+  facet_grid(cols=vars(StatNam))
 
-statN1N2 %>% 
+```
+
+Nun n1 und n2.
+
+```{r n1n2}
+
+stat %>% 
   pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
-  ggplot(aes(x=Fangradius,y=Wert,color=Größe))+
+  ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
   geom_line()+
-  facet_grid(cols=vars(StatNam))
-
-statN1N2 %>% 
-  pivot_longer(Erfassungsquote:mittlererLASmax,names_to = "Größe",values_to = "Wert") %>% 
-  ggplot(aes(x=Fangradius,y=Wert,color=Größe))+
-  geom_line()+
-  facet_grid(cols=vars(StatNam))
-
+  facet_grid(cols=vars(StatNam),rows=vars(`Größe`))
 
 ```
 
