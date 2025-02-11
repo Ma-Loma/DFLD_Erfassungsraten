@@ -218,16 +218,16 @@ meas_data <- function(pathlist) {
 }
 
 
-preaf_data <- csv_files(data_path) %>%
+praef_data <- csv_files(data_path) %>%
   .[!str_detect(., "full")] %>%
-  meas_data(.)
-
-Stationsliste<-preaf_data$StatNam %>% unique()
+  meas_data(.) %>% 
+  mutate(StatNam=str_remove(StatNam," ooo"))
 
 full_data<-csv_files(data_path) %>%
   .[str_detect(., "ansi")] %>%
   meas_data(.) %>% 
-  mutate(LasMax=`LasMax(Mss)`,.keep="unused")
+  mutate(LasMax=`LasMax(Mss)`,StatNam=str_remove(StatNam," ooo"),.keep="unused")
+
 
 ```
 
@@ -258,8 +258,14 @@ zeitstempeln <- function(data_in) {
   return(data_out)
 }
 
-preaf_data<-zeitstempeln(preaf_data)
+praef_data<-zeitstempeln(praef_data)
 full_data<-zeitstempeln(full_data)
+
+praef_Fangradius<-praef_data %>% 
+  select(StatNam,StatNr,Fangradius) %>% 
+  unique()
+
+Stationsliste<-full_data$StatNam %>% unique()
 
 ```
 
@@ -283,7 +289,7 @@ Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach An
 
 ```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4}
 
-preaf_data %>% 
+praef_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
   geom_point()+
   facet_wrap(vars(StatNam))
@@ -292,13 +298,23 @@ preaf_data %>%
 
 
 
-```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius", fig.width=6.7,fig.height=5.5}
+```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius. Der Teilgraph mit dem von Herrn Weise präferiertem Fangradius ist rot umrandet.", fig.width=6.7,fig.height=5.5}
 
-full_data %>% 
-  filter(StatusNr==0) %>% 
-  ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Typ)))+
-  geom_point()+
-  facet_grid(cols=vars(StatNam),rows=vars(Fangradius))
+full_data %>%
+  filter(StatusNr == 0) %>%
+  ggplot(aes(x = AbAnDatetime, y = SEL, color = factor(Typ))) +
+  geom_point() +
+  facet_grid(cols = vars(StatNam), rows = vars(Fangradius)) +
+  geom_rect(
+    data=praef_data,
+    fill = NA,
+    colour = "red",
+    xmin = -Inf,
+    xmax = Inf,
+    ymin = -Inf,
+    ymax = Inf
+  )
+
 
 ```
 
@@ -307,7 +323,7 @@ full_data %>%
 
 ```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
 
-preaf_data %>% 
+praef_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
   geom_violin()+
   facet_wrap(vars(StatNam))
@@ -318,7 +334,7 @@ preaf_data %>%
 
 ```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach Schwelle", fig.width=6.7,fig.height=4}
 
-preaf_data %>% 
+praef_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
   geom_violin()+
   facet_wrap(vars(StatNam))
@@ -326,6 +342,8 @@ preaf_data %>%
 ```
 
 # Formeln
+
+## Dauerschallpegel
 
 Der Dauerschalldruckpegel gemäß DIN 45643:2011 ist definiert als
 $$
@@ -335,7 +353,7 @@ mit
 $$
 L_{p,A,E,i}=10 \lg \left(\frac{1}{t_0}\int \frac{P_{A,i}(t)^2}{p_0^{\;2}}\right)\;(=\mathrm{SEL}).
 $$
-```{r}
+```{r Dauerschallpegel}
 
 t0=as.duration(1)
 
@@ -343,7 +361,13 @@ dauerschallpegel <- function(SEL,T) {
   10*log10(t0/T * sum(10^(SEL/10),na.rm = T))
 }
 
+```
 
+## Erfassungsdauern
+
+Eine gewisse Herausforderung ist die korrekte Erfassung der Erfassungsdauern.
+
+```{r Erfassungsdauern_Vorbereitung}
 Erfassungsdauern<-
   full_data %>% 
   group_by(StatNam) %>%
@@ -364,7 +388,6 @@ DENtafel <-  data.frame(
 )
 
 #seq(Erfassungsdauern$AnfangDatum %>% first(),Erfassungsdauern$EndeDatum %>% first(),by="day")
-
 DENIntervalle <-
   function( Anfangsdatum, Endedatum) {
     DENtafel %>%
@@ -379,10 +402,28 @@ DENIntervalle <-
       select(ZeitLabel,Datum, Intervall,Dauer)
   }
 
-#Bei Zeitumstellung ist die Dauer länger oder kürzer
+
+```
+
+
+So ist beispielsweise die Dauer der Nacht bei Zeitumstellungen unterschiedlich:
+
+```{r Illustration_Erfassungsdauer}
+tableGerman<-set_flextable_defaults(decimal.mark = ",",big.mark=".")
+#Bei Zeitumstellung ist die Dauer länger oder kürzer, Test hier
 DENIntervalle(
     dmy("29.03.2025"),
-    dmy("30.03.2025"))
+    dmy("30.03.2025")) %>% 
+  filter(ZeitLabel=="N") %>% 
+  mutate(`Dauer [s]`=Dauer,.keep="unused") %>% 
+  qflextable()
+
+```
+
+
+
+```{r }
+
 
 eins <- Erfassungsdauern[[1, "AnfangDatum"]]
 zwei <- Erfassungsdauern[[1, "EndeDatum"]]
@@ -394,7 +435,6 @@ DauernInIntervallen <- function(erstesDatum, zweitesDatum,label) {
     pivot_wider(names_from = ZeitLabel,values_from = Gesamtdauer) %>%
     mutate(StatNam=label)
 }
-DauernInIntervallen(eins,zwei,"Spaß")
 
 DauernInIntervallenDF <- mapply(
   DauernInIntervallen,
@@ -427,7 +467,9 @@ stat <-
     Dauer = first(Dauer),
     Leq = dauerschallpegel(SEL, Dauer)
     )
-
+stat<-praef_Fangradius %>%
+  mutate(praef = Fangradius, .keep = "unused") %>%
+  right_join(stat)
 
 
 ```
@@ -435,36 +477,40 @@ stat <-
 
 # Graphen
 
-Dauerschallpegel aller Flieger
+In Abb. \@ref(fig:Leq) ist der Dauerschallpegel aller Flieger als Funktion des Fangradius und nach Gewichtsklasse aufgeteilt dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
-```{r Leq}
+```{r Leq, fig.cap="Graphische Darstellung des ermittelten Leq nach Gewichtsklasse.", fig.width=6.7,fig.height=4}
 stat %>%
   ggplot(aes(x = Fangradius, y = Leq, color = DEN)) +
+  geom_vline(aes(xintercept = praef), color = "black") +
   geom_line() +
   geom_point() +
-  facet_grid(cols = vars(StatNam),rows = vars(WTC))
+  facet_grid(cols = vars(StatNam), rows = vars(WTC))
+
 
 ```
 
-Erfassungsquote aller Flieger
+Erfassungsquote aller Flieger.  Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
 ```{r Erfassungsquote}
 
 stat %>% 
   ggplot(aes(x=Fangradius,y=n1/n2,color=DEN))+
+  geom_vline(aes(xintercept = praef), color = "black") +
   geom_line()+
   geom_point()+
   facet_grid(cols = vars(StatNam),rows = vars(WTC))
 
 ```
 
-Nun n1 und n2.
+Nun n1 und n2. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
 ```{r n1n2, fig.width=6.7,fig.height=10}
 
 stat %>% 
   pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
   ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
+  geom_vline(aes(xintercept = praef), color = "black") +
   geom_line()+
   facet_grid(cols=vars(StatNam),rows=vars(`Größe`,WTC),scales = "free")
 
