@@ -217,12 +217,12 @@ meas_data <- function(pathlist) {
 }
 
 
-preaf_data <- csv_files(data_path) %>%
+praef_data <- csv_files(data_path) %>%
   .[!str_detect(., "full")] %>%
   meas_data(.) %>% 
   mutate(StatNam=str_remove(StatNam," ooo"))
 
-Stationsliste<-preaf_data$StatNam %>% unique()
+Stationsliste<-praef_data$StatNam %>% unique()
 
 full_data<-csv_files(data_path) %>%
   .[str_detect(., "ansi")] %>%
@@ -259,10 +259,10 @@ zeitstempeln <- function(data_in) {
   return(data_out)
 }
 
-preaf_data<-zeitstempeln(preaf_data)
+praef_data<-zeitstempeln(praef_data)
 full_data<-zeitstempeln(full_data)
 
-praef_Fangradius<-preaf_data %>% 
+praef_Fangradius<-praef_data %>% 
   select(StatNam,StatNr,Fangradius) %>% 
   unique()
 
@@ -288,7 +288,7 @@ Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach An
 
 ```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4}
 
-preaf_data %>% 
+praef_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
   geom_point()+
   facet_wrap(vars(StatNam))
@@ -305,7 +305,7 @@ full_data %>%
   geom_point() +
   facet_grid(cols = vars(StatNam), rows = vars(Fangradius)) +
   geom_rect(
-    data=preaf_data,
+    data=praef_data,
     fill = NA,
     colour = "red",
     xmin = -Inf,
@@ -322,7 +322,7 @@ full_data %>%
 
 ```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
 
-preaf_data %>% 
+praef_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
   geom_violin()+
   facet_wrap(vars(StatNam))
@@ -333,7 +333,7 @@ preaf_data %>%
 
 ```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach Schwelle", fig.width=6.7,fig.height=4}
 
-preaf_data %>% 
+praef_data %>% 
   ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
   geom_violin()+
   facet_wrap(vars(StatNam))
