@@ -326,6 +326,8 @@ preaf_data %>%
 
 # Formeln
 
+## Dauerschallpegel
+
 Der Dauerschalldruckpegel gemäß DIN 45643:2011 ist definiert als
 $$
 L_{p,A,eq,T} = 10\lg \left(\frac{t_0}{T}\sum_{I=1}^{N} 10^{L_{p,A,E,i}/10\,\textrm{dB}}\right)\,\textrm{dB}
@@ -334,7 +336,7 @@ mit
 $$
 L_{p,A,E,i}=10 \lg \left(\frac{1}{t_0}\int \frac{P_{A,i}(t)^2}{p_0^{\;2}}\right)\;(=\mathrm{SEL}).
 $$
-```{r}
+```{r Dauerschallpegel}
 
 t0=as.duration(1)
 
@@ -342,7 +344,13 @@ dauerschallpegel <- function(SEL,T) {
   10*log10(t0/T * sum(10^(SEL/10),na.rm = T))
 }
 
+```
 
+## Erfassungsdauern
+
+Eine gewisse Herausforderung ist die korrekte Erfassung der Erfassungsdauern.
+
+```{r Erfassungsdauern_Vorbereitung}
 Erfassungsdauern<-
   full_data %>% 
   group_by(StatNam) %>%
@@ -363,7 +371,6 @@ DENtafel <-  data.frame(
 )
 
 #seq(Erfassungsdauern$AnfangDatum %>% first(),Erfassungsdauern$EndeDatum %>% first(),by="day")
-
 DENIntervalle <-
   function( Anfangsdatum, Endedatum) {
     DENtafel %>%
@@ -378,10 +385,28 @@ DENIntervalle <-
       select(ZeitLabel,Datum, Intervall,Dauer)
   }
 
-#Bei Zeitumstellung ist die Dauer länger oder kürzer
+
+```
+
+
+So ist beispielsweise die Dauer der Nacht bei Zeitumstellungen unterschiedlich:
+
+```{r Illustration_Erfassungsdauer}
+tableGerman<-set_flextable_defaults(decimal.mark = ",",big.mark=".")
+#Bei Zeitumstellung ist die Dauer länger oder kürzer, Test hier
 DENIntervalle(
     dmy("29.03.2025"),
-    dmy("30.03.2025"))
+    dmy("30.03.2025")) %>% 
+  filter(ZeitLabel=="N") %>% 
+  mutate(`Dauer [s]`=Dauer,.keep="unused") %>% 
+  qflextable()
+
+```
+
+
+
+```{r }
+
 
 eins <- Erfassungsdauern[[1, "AnfangDatum"]]
 zwei <- Erfassungsdauern[[1, "EndeDatum"]]
@@ -393,7 +418,6 @@ DauernInIntervallen <- function(erstesDatum, zweitesDatum,label) {
     pivot_wider(names_from = ZeitLabel,values_from = Gesamtdauer) %>%
     mutate(StatNam=label)
 }
-DauernInIntervallen(eins,zwei,"Spaß")
 
 DauernInIntervallenDF <- mapply(
   DauernInIntervallen,
