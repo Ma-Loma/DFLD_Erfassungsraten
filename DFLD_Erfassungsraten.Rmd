@@ -14,7 +14,6 @@ always_allow_html: yes
 rm(list = ls())
 #update.packages(ask = FALSE)
 # Laden der für das Dokument benötigten Pakete
-
 library(knitr)
 library(stringr)
 library(kableExtra)
