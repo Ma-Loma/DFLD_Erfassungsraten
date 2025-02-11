@@ -222,8 +222,6 @@ praef_data <- csv_files(data_path) %>%
   meas_data(.) %>% 
   mutate(StatNam=str_remove(StatNam," ooo"))
 
-Stationsliste<-praef_data$StatNam %>% unique()
-
 full_data<-csv_files(data_path) %>%
   .[str_detect(., "ansi")] %>%
   meas_data(.) %>% 
@@ -265,6 +263,8 @@ full_data<-zeitstempeln(full_data)
 praef_Fangradius<-praef_data %>% 
   select(StatNam,StatNr,Fangradius) %>% 
   unique()
+
+Stationsliste<-full_data$StatNam %>% unique()
 
 ```
 
@@ -476,10 +476,9 @@ stat<-praef_Fangradius %>%
 
 # Graphen
 
-Dauerschallpegel aller Flieger. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+In Abb. \@ref(fig:Leq) ist der Dauerschallpegel aller Flieger als Funktion des Fangradius und nach Gewichtsklasse aufgeteilt dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
-```{r Leq}
-
+```{r Leq, fig.cap="Graphische Darstellung des ermittelten Leq nach Gewichtsklasse.", fig.width=6.7,fig.height=4}
 stat %>%
   ggplot(aes(x = Fangradius, y = Leq, color = DEN)) +
   geom_vline(aes(xintercept = praef), color = "black") +
