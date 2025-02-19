@@ -268,7 +268,7 @@ Stationsliste<-full_data$StatNam %>% unique()
 
 # Betrachtete Messstationen
 
-Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DFLD Stationen ```r Stationsliste``` betrachet.
+Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DFLD Stationen ```r Stationsliste``` betrachtet.
 
 
 
@@ -278,12 +278,12 @@ knitr::include_graphics("external_img/Messpunktkarte.png")
 
 ```
 
-Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1).
+Graphische Darstellung mit präferiertem Fangradius in Abb. \@ref(fig:Scatterplots1) und mit allen Fangradien in \@ref(Scatterplots1f).
 
 
 
 
-```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4}
+```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit dem jeweils präferierten Fangradius.", fig.width=6.7,fig.height=4}
 
 praef_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(AbAn)))+
@@ -295,7 +295,7 @@ praef_data %>%
 
 
 
-```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius. Der Teilgraph mit dem von Herrn Weise präferiertem Fangradius ist rot umrandet.", fig.width=6.7,fig.height=5.5}
+```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius. Die Teilgraphen mit den von Herrn Weise präferierten Fangradien sind rot umrandet.", fig.width=6.7,fig.height=5.5}
 
 full_data %>%
   filter(StatusNr == 0) %>%
