@@ -290,7 +290,8 @@ Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach An
 praef_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(AbAn)))+
   geom_point()+
-  facet_wrap(vars(StatNam))
+  facet_wrap(vars(StatNam))+
+  labs(color = "An- oder Abflug")
 
 ```
 
@@ -311,7 +312,8 @@ full_data %>%
     xmax = Inf,
     ymin = -Inf,
     ymax = Inf
-  )
+  )+
+  labs(color = "An- oder Abflug")
 
 
 ```
