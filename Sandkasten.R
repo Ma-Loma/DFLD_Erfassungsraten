@@ -108,9 +108,10 @@ full_data %>%
   mutate(istGleichzeitig=if_else(eventID %in% prob_flg,"gleichzeitig","einzeln")) %>% 
   group_by(StatNam,istErkannt,istGleichzeitig,Fangradius) %>% 
   summarize(n=n()) %>%
-  pivot_wider(names_from=c(istErkannt,istGleichzeitig),values_from = n,values_fill = 0)
+  pivot_wider(names_from=c(istErkannt,istGleichzeitig),values_from = n,values_fill = 0) %>% 
+  qflextable()
 
-komisch %>%  # Ensure correct order
+komisch %>%
   filter(praef==Fangradius) %>% 
   slice_head(n = 8) %>%
   ggplot(aes(
@@ -123,3 +124,4 @@ komisch %>%  # Ensure correct order
                linewidth = 2) +
   labs(x = "Zeiten über Schwelle", y = "AbAnZeit", title = "Ereignisintervalle") +
   facet_wrap(vars(StatNam),scales="free_x")
+ggsave("export/DFLD_Erfassungsraten_files/figure-docx/Doppelerfassung Beispiele.png")
