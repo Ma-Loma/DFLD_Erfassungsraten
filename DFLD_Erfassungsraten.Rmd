@@ -225,9 +225,8 @@ praef_data <- csv_files(data_path) %>%
 full_data<-csv_files(data_path) %>%
   .[str_detect(., "ansi")] %>%
   meas_data(.) %>% 
-  mutate(LasMax=`LasMax(Mss)`,StatNam=str_remove(StatNam," ooo"),.keep="unused")
-
-
+  mutate(LasMax=`LasMax(Mss)`,StatNam=str_remove(StatNam," ooo"),.keep="unused") %>% 
+  mutate(AbAn=if_else(AbAn=="v","Landung","Start"))
 ```
 
 In diesen Daten habe ich dann noch die Zeitdaten besser für R verarbeitbar gemacht.
@@ -289,9 +288,10 @@ Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach An
 ```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius", fig.width=6.7,fig.height=4}
 
 praef_data %>% 
-  ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(Fangradius)))+
+  ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(AbAn)))+
   geom_point()+
-  facet_wrap(vars(StatNam))
+  facet_wrap(vars(StatNam))+
+  labs(color = "An- oder Abflug")
 
 ```
 
@@ -301,7 +301,7 @@ praef_data %>%
 
 full_data %>%
   filter(StatusNr == 0) %>%
-  ggplot(aes(x = AbAnDatetime, y = SEL, color = factor(Typ))) +
+  ggplot(aes(x = AbAnDatetime, y = SEL, color = factor(AbAn))) +
   geom_point() +
   facet_grid(cols = vars(StatNam), rows = vars(Fangradius)) +
   geom_rect(
@@ -312,7 +312,8 @@ full_data %>%
     xmax = Inf,
     ymin = -Inf,
     ymax = Inf
-  )
+  )+
+  labs(color = "An- oder Abflug")
 
 
 ```
