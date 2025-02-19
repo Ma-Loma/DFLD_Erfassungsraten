@@ -451,9 +451,11 @@ DauernInIntervallenDF <- mapply(
   ) %>% 
   pivot_longer(!StatNam,names_to = "DEN",values_to = "Dauer")
 
-stat <-
+full_data_erfD<-
   full_data %>%
-  left_join(Erfassungsdauern) %>%
+  left_join(Erfassungsdauern)
+
+stat <- full_data_erfD%>%
   mutate(Dauer=NULL) %>% 
   left_join(DauernInIntervallenDF) %>% 
   group_by(StatNam, Fangradius,DEN,WTC) %>%
@@ -470,6 +472,29 @@ stat<-praef_Fangradius %>%
   mutate(praef = Fangradius, .keep = "unused") %>%
   right_join(stat)
 
+stat2<-full_data_erfD%>%
+  mutate(Gewichtsklasse=if_else(WTC=="H","heavy","nicht heavy",missing="nicht heavy")) %>% 
+  bind_rows(
+  full_data_erfD %>% mutate(Gewichtsklasse = "Alle Gewichtsklassen")
+) %>% 
+  mutate(Dauer=NULL) %>% 
+  left_join(DauernInIntervallenDF)%>% 
+  group_by(StatNam, Fangradius,DEN,Gewichtsklasse) %>%
+  summarise(
+    n1 = sum(StatusNr == 0),
+    n2 = n(),
+    Erfassungsquote = scales::percent(n1 / n2),
+    Anfang = first(Anfang),
+    Ende = first(Ende),
+    Dauer = first(Dauer),
+    Leq = dauerschallpegel(SEL, Dauer)
+  )
+
+
+stat2<-praef_Fangradius %>%
+  mutate(praef = Fangradius, .keep = "unused") %>%
+  right_join(stat2)
+
 
 ```
 
@@ -478,40 +503,37 @@ stat<-praef_Fangradius %>%
 
 In Abb. \@ref(fig:Leq) ist der Dauerschallpegel aller Flieger als Funktion des Fangradius und nach Gewichtsklasse aufgeteilt dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
-```{r Leq, fig.cap="Graphische Darstellung des ermittelten Leq nach Gewichtsklasse.", fig.width=6.7,fig.height=4}
-stat %>%
+```{r Leq, fig.cap="Graphische Darstellung des ermittelten Leq nach Gewichtsklasse.", fig.width=6.7,fig.height=5.5}
+stat2 %>%
   ggplot(aes(x = Fangradius, y = Leq, color = DEN)) +
   geom_vline(aes(xintercept = praef), color = "black") +
   geom_line() +
   geom_point() +
-  facet_grid(cols = vars(StatNam), rows = vars(WTC))
-
-
+  facet_grid(cols = vars(StatNam), rows = vars(Gewichtsklasse))
 ```
+In Abb. \@ref(fig:Leq) sind die Erfassungsquoten dargestellt.  Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
-Erfassungsquote aller Flieger.  Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+```{r Erfassungsquote, fig.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse.", fig.width=6.7,fig.height=5.5}
 
-```{r Erfassungsquote}
-
-stat %>% 
+stat2 %>% 
   ggplot(aes(x=Fangradius,y=n1/n2,color=DEN))+
   geom_vline(aes(xintercept = praef), color = "black") +
   geom_line()+
   geom_point()+
-  facet_grid(cols = vars(StatNam),rows = vars(WTC))
+  facet_grid(cols = vars(StatNam),rows = vars(Gewichtsklasse))
 
 ```
 
-Nun n1 und n2. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
-```{r n1n2, fig.width=6.7,fig.height=10}
+```{r n1n2, fig.cap="n1 und n2 nach Gewichtsklasse.", fig.width=6.7,fig.height=9}
 
-stat %>% 
+stat2 %>% 
   pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
   ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
   geom_vline(aes(xintercept = praef), color = "black") +
   geom_line()+
-  facet_grid(cols=vars(StatNam),rows=vars(`Größe`,WTC),scales = "free")
+  facet_grid(cols=vars(StatNam),rows=vars(Gewichtsklasse,`Größe`),scales = "free")
 
 ```
 
