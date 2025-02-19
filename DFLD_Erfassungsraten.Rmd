@@ -324,11 +324,11 @@ full_data %>%
 
 Der Dauerschalldruckpegel gemäß DIN 45643:2011 ist definiert als
 $$
-L_{p,A,eq,T} = 10\lg \left(\frac{t_0}{T}\sum_{I=1}^{N} 10^{L_{p,A,E,i}/10\,\textrm{dB}}\right)\,\textrm{dB}
+L_{p,A,eq,T} = 10\cdot\lg \left(\frac{t_0}{T}\sum_{I=1}^{N} 10^{L_{p,A,E,i}/10\,\textrm{dB}}\right)\,\textrm{dB}
 $$
 mit 
 $$
-L_{p,A,E,i}=10 \lg \left(\frac{1}{t_0}\int \frac{P_{A,i}(t)^2}{p_0^{\;2}}\right)\;(=\mathrm{SEL}).
+L_{p,A,E,i}=10 \lg \left(\frac{1}{t_0}\int dt \frac{P_{A,i}(t)^2}{p_0^{\;2}}\right)\;(=\mathrm{SEL}).
 $$
 ```{r Dauerschallpegel}
 
