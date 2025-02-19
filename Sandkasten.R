@@ -9,7 +9,7 @@ stat %>%
   theme(axis.text.x = element_text(size=txtGr, angle=90),
         axis.text.y = element_text(size=txtGr),
         axis.title = element_text(size=txtGr+2))
-ggsave("export/DFLD_Erfassungsraten_files/figure-docx/test.png")
+#ggsave("export/DFLD_Erfassungsraten_files/figure-docx/test.png")
 
 stat2<-full_data %>%
   left_join(Erfassungsdauern) %>%
@@ -102,7 +102,7 @@ full_data %>%
   summarize(n=n()) %>%
   pivot_wider(names_from=c(istErkannt,DEN),values_from = n,values_fill = 0)
   
-full_data %>% 
+erk_gleichz_tab<-full_data %>% 
   filter(praef==Fangradius) %>% 
   mutate(istErkannt=if_else(StatusNr==0,"erkannt","unerkannt")) %>%
   mutate(istGleichzeitig=if_else(eventID %in% prob_flg,"gleichzeitig","einzeln")) %>% 
@@ -110,6 +110,11 @@ full_data %>%
   summarize(n=n()) %>%
   pivot_wider(names_from=c(istErkannt,istGleichzeitig),values_from = n,values_fill = 0) %>% 
   qflextable()
+erk_gleichz_tab
+erk_gleichz_tab %>% 
+  save_as_image("export/DFLD_Erfassungsraten_files/figure-docx/Erkannt_Gleichzeitig_Tabelle.png")
+
+
 
 komisch %>%
   filter(praef==Fangradius) %>% 
