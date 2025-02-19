@@ -528,7 +528,7 @@ stat2 %>%
 
 Offenbar Werden im betrachteten Datensatz Fluglärmereignisse aufgelistet, die gleichzeitig stattfinden. Die Zahlen werden in Tab. \@ref(tab:AnzahlGleichzeitig) dargestellt.
 
-```{r Anzahl_gleichzeitig, tab.id = "AnzahlGleichzeitig", tab.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse. Dabei steht erk für akustisch erkannt, unerk für akustisch nicht erkannt, gleichz für gleichzeitige Ereignise und einzel für nicht gleichzeitige Ereignisse."}
+```{r Anzahl_gleichzeitig, tab.id = "AnzahlGleichzeitig", tab.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse. Dabei steht erk für akustisch erkannt, unerk für akustisch nicht erkannt, gleichz für gleichzeitige Ereignise und einz für einzelne, nicht gleichzeitige Ereignisse."}
 
 praef_data<-praef_data %>%
   mutate(eventID=paste(StatNr,Fangradius,Lfd,FlugNr,AbAnDatetime,sep="_"))
@@ -567,7 +567,7 @@ komisch <-
 erk_gleichz_tab<-full_data %>% 
   filter(praef==Fangradius) %>% 
   mutate(istErkannt=if_else(StatusNr==0,"erk","unerk")) %>%
-  mutate(istGleichzeitig=if_else(eventID %in% prob_flg,"gleichzeitig","einzeln")) %>% 
+  mutate(istGleichzeitig=if_else(eventID %in% prob_flg,"gleichz","einz")) %>% 
   group_by(StatNam,istErkannt,istGleichzeitig,Fangradius) %>% 
   summarize(n=n()) %>%
   pivot_wider(names_from=c(istErkannt,istGleichzeitig),values_from = n,values_fill = 0) %>% 
