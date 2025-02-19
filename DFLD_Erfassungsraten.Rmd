@@ -288,7 +288,7 @@ Graphische Darstellung mit präferiertem Fangradius in Abb. \@ref(fig:Scatterplo
 praef_data %>% 
   ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(AbAn)))+
   geom_point()+
-  facet_wrap(vars(StatNam))+
+  facet_wrap(vars(StatNam)) +
   labs(color = "An- oder Abflug")
 
 ```
@@ -476,8 +476,9 @@ stat2<-praef_Fangradius %>%
 
 ```
 
+# Graphen und Statistiken
 
-# Graphen
+## Dauerschallpegel
 
 In Abb. \@ref(fig:Leq) ist der Dauerschallpegel aller Flieger als Funktion des Fangradius und nach Gewichtsklasse aufgeteilt dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
@@ -490,6 +491,23 @@ stat2 %>%
   facet_grid(cols = vars(StatNam), rows = vars(Gewichtsklasse)) +
   theme(axis.text.x = element_text(angle = 90,vjust=0.5))
 ```
+
+## Erfasste Flüge und Erfassungsquoten
+
+In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+
+```{r n1n2, fig.cap="n1 und n2 nach Gewichtsklasse.", fig.width=6.7,fig.height=9}
+
+stat2 %>% 
+  pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
+  ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
+  geom_vline(aes(xintercept = praef), color = "black") +
+  geom_line()+
+  facet_grid(cols=vars(StatNam),rows=vars(Gewichtsklasse,`Größe`),scales = "free") +
+  theme(axis.text.x = element_text(angle = 90,vjust=0.5))
+
+```
+
 In Abb. \@ref(fig:Leq) sind die Erfassungsquoten dargestellt.  Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
 ```{r Erfassungsquote, fig.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse.", fig.width=6.7,fig.height=5.5}
@@ -504,17 +522,78 @@ stat2 %>%
 
 ```
 
-In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+\newpage
 
-```{r n1n2, fig.cap="n1 und n2 nach Gewichtsklasse.", fig.width=6.7,fig.height=9}
+## Gleichzeitige Ereignisse
 
-stat2 %>% 
-  pivot_longer(n1:n2,names_to = "Größe",values_to = "Wert") %>% 
-  ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
-  geom_vline(aes(xintercept = praef), color = "black") +
-  geom_line()+
-  facet_grid(cols=vars(StatNam),rows=vars(Gewichtsklasse,`Größe`),scales = "free") +
-  theme(axis.text.x = element_text(angle = 90,vjust=0.5))
+Offenbar Werden im betrachteten Datensatz Fluglärmereignisse aufgelistet, die gleichzeitig stattfinden. Die Zahlen werden in Tab. \@ref(tab:AnzahlGleichzeitig) dargestellt.
+
+```{r Anzahl_gleichzeitig, tab.id = "AnzahlGleichzeitig", tab.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse. Dabei steht erk für akustisch erkannt, unerk für akustisch nicht erkannt, gleichz für gleichzeitige Ereignise und einzel für nicht gleichzeitige Ereignisse."}
+
+praef_data<-praef_data %>%
+  mutate(eventID=paste(StatNr,Fangradius,Lfd,FlugNr,AbAnDatetime,sep="_"))
+
+
+full_data<-full_data %>%
+  mutate(eventID=paste(StatNr,Fangradius,Lfd,FlugNr,AbAnDatetime,sep="_"))
+
+full_data<-praef_Fangradius %>%
+  mutate(praef = Fangradius, .keep = "unused") %>%
+  right_join(full_data)
+
+overlap_df <- full_data %>%
+  group_by(StatNam, Fangradius) %>%  # Group by relevant columns
+#  group_by(StatNam) %>% 
+  arrange(tsAnfDatetime, .by_group = TRUE) %>%  # Ensure correct order
+  mutate(prev_End = lag(tsEndDatetime),
+         prev_ID = lag(eventID))%>%
+  filter(!is.na(prev_End) & tsAnfDatetime < prev_End)  # Overlap condition
+  #select(Event1 = prev_ID, Event2 = eventID, Start1 = lag(tsAnfDatetime), 
+  #       End1 = prev_End, Start2 = tsAnfDatetime, End2 = tsEndDatetime)
+  
+prob_flg <-
+  overlap_df %>%
+  ungroup() %>%
+  select(prev_ID, eventID) %>%
+  unlist() %>%
+  unique()
+
+komisch <-
+  full_data %>%
+  ungroup() %>%
+  filter(eventID %in% prob_flg) %>%
+  arrange(tsAnfDatetime, .by_group = TRUE)
+
+erk_gleichz_tab<-full_data %>% 
+  filter(praef==Fangradius) %>% 
+  mutate(istErkannt=if_else(StatusNr==0,"erk","unerk")) %>%
+  mutate(istGleichzeitig=if_else(eventID %in% prob_flg,"gleichzeitig","einzeln")) %>% 
+  group_by(StatNam,istErkannt,istGleichzeitig,Fangradius) %>% 
+  summarize(n=n()) %>%
+  pivot_wider(names_from=c(istErkannt,istGleichzeitig),values_from = n,values_fill = 0) %>% 
+  qflextable()
+erk_gleichz_tab
+# erk_gleichz_tab %>% 
+#   save_as_image("export/DFLD_Erfassungsraten_files/figure-docx/Erkannt_Gleichzeitig_Tabelle.png")
+```
+
+Acht Beispiele von gleichzeitig erfassten Vorbeiflügen werden in Abb. \@ref(fig:BeispielDoppelereignisse) dargestellt.
+
+```{r BeispielDoppelereignisse, fig.cap="Beispiele von Ereignissen, die zu gleichen Zeit erfasst wurden.", fig.width=6.7,fig.height=4}
+komisch %>%
+  filter(praef==Fangradius) %>% 
+  slice_head(n = 8) %>%
+  ggplot(aes(
+    y = factor(Piste),
+    x = tsAnfDatetime,
+    xend = tsEndDatetime
+  )) +
+  geom_segment(aes(yend = factor(Piste),
+                   color = factor(ATD)),
+               linewidth = 2) +
+  labs(x = "Zeiten über Schwelle", y = "Runway", title = "akustische Ereignisintervalle (ts) ") +
+  facet_wrap(vars(StatNam),scales="free_x")  +
+  labs(color = "AzB Klasse")
 
 ```
 
