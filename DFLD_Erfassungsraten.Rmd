@@ -159,7 +159,7 @@ Der Code der Analyse und die verwendeten Eingangsdaten wird unter dem öffentlic
 
 # Ausgangsfrage
 
-Welcher Einfluss hat der Fangradius und weitere Parameter auf die Erfassungsrate der DFLD-Messstationen.
+Welcher Einfluss haben der Fangradius und weitere Parameter auf die Erfassungsrate der DFLD-Messstationen.
 
 
 # Einlesen der CSV-Dateien
@@ -179,8 +179,6 @@ csv_files <- function(path) {
              pattern = "*.csv",
              full.names = TRUE)
 }
-
-csv_files(data_path)
 
 # Funktion zum Einlesen einer einzelnen CSV-Datei
 read_csv_file <- function(file) {
@@ -280,7 +278,7 @@ knitr::include_graphics("external_img/Messpunktkarte.png")
 
 ```
 
-Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1), nach Analysemethode in Abb. \@ref(fig:Scatterplots2) und nach Messpegel in Abb. \@ref(fig:Scatterplots3).
+Graphische Darstellung nach Fangradius in Abb. \@ref(fig:Scatterplots1).
 
 
 
@@ -319,27 +317,6 @@ full_data %>%
 ```
 
 
-
-
-```{r Scatterplots2, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach gewählter Dauerschall-Analysemethode", fig.width=6.7,fig.height=4}
-
-praef_data %>% 
-  ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
-  geom_violin()+
-  facet_wrap(vars(StatNam))
-
-```
-
-
-
-```{r Scatterplots3, fig.cap="Graphische Darstellung der Daten mit präferiertem Fangradius nach Schwelle", fig.width=6.7,fig.height=4}
-
-praef_data %>% 
-  ggplot(aes(x=DEN,y=LasMax,fill=factor(Typ)))+
-  geom_violin()+
-  facet_wrap(vars(StatNam))
-
-```
 
 # Formeln
 
