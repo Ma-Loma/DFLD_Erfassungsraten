@@ -157,9 +157,10 @@ das Paket ermöglicht uns eine praktische Einbindung von Abbildungsverzeichnisse
 Diese Analyse wurde in RMarkdown geschrieben. Zum technischen Hintergrund siehe @xie2015.
 Der Code der Analyse und die verwendeten Eingangsdaten wird unter dem öffentlich zugänglichen Repositorium  https://github.com/Ma-Loma/DFLD_Erfassungsraten.git versioniert.
 
-# Ausgangsfrage
+# Ausgangsfragen
 
-Welcher Einfluss haben der Fangradius und weitere Parameter auf die Erfassungsrate der DFLD-Messstationen.
+- Sind die Standorte der kommunalen Messstellen geeignet, um das bestehende Messnetz zu ergänzen?
+- Welcher Einfluss haben der Fangradius und weitere Parameter auf die Erfassungsrate der komunalen Messstationen? 
 
 
 # Einlesen der CSV-Dateien
@@ -526,7 +527,7 @@ stat2 %>%
 
 ## Gleichzeitige Ereignisse
 
-Offenbar Werden im betrachteten Datensatz Fluglärmereignisse aufgelistet, die gleichzeitig stattfinden. Die Zahlen werden in Tab. \@ref(tab:AnzahlGleichzeitig) dargestellt.
+Offenbar werden im betrachteten Datensatz Fluglärmereignisse aufgelistet, die gleichzeitig stattfinden. Die Zahlen werden in Tab. \@ref(tab:AnzahlGleichzeitig) dargestellt.
 
 ```{r Anzahl_gleichzeitig, tab.id = "AnzahlGleichzeitig", tab.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse. Dabei steht erk für akustisch erkannt, unerk für akustisch nicht erkannt, gleichz für gleichzeitige Ereignise und einz für einzelne, nicht gleichzeitige Ereignisse."}
 
