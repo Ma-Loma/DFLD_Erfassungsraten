@@ -231,29 +231,47 @@ full_data<-csv_files(data_path) %>%
 In diesen Daten habe ich dann noch die Zeitdaten besser für R verarbeitbar gemacht.
 
 ```{r}
+
+test<-full_data %>%
+  select(contains(c("Datum","Zeit", "ts"))) %>%
+  .[1:4,]
+
 zeitstempeln <- function(data_in) {
   data_out <- data_in %>%
     mutate(
       AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(
         AbAnDatum, AbAnZeit
-      )),tz="Europe/Berlin"),
+      )), tz = "Europe/Berlin"),
       tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
         AbAnDatum, `ts(anf)`
-      )),tz="Europe/Berlin"),
+      )), tz = "Europe/Berlin"),
       tsEndDatetime = lubridate::as_datetime(dmy_hms(paste(
         AbAnDatum, `ts(end)`
-      )),tz="Europe/Berlin"),
-      .keep = "unused"
-    ) %>%
+      )), tz = "Europe/Berlin"),
+      tsVorbeiflug = tsAnfDatetime#,      .keep = "unused"
+    )
+  if_else
+  if ("ZeitSll" %in% colnames(data_out)) {
+    data_out <- data_out %>%
+      mutate(tsVorbeiflug =
+               lubridate::as_datetime(dmy_hms(paste(
+                 AbAnDatum, ZeitSll
+               ))))
+  }
+  
+  data_out <- data_out  %>%
     mutate(DEN = case_when(
-      hour(tsAnfDatetime) %in% 6:17  ~ "D",
+      hour(tsVorbeiflug) %in% 6:17  ~ "D",
       # Day: 6 AM to 6 PM
-      hour(tsAnfDatetime) %in% 18:21 ~ "E",
+      hour(tsVorbeiflug) %in% 18:21 ~ "E",
       # Evening: 6 PM to 10 PM
       TRUE ~ "N"                  # Night: 10 PM to 6 AM
     ))
+  
   return(data_out)
 }
+
+zeitstempeln(test)
 
 praef_data<-zeitstempeln(praef_data)
 full_data<-zeitstempeln(full_data)
@@ -364,20 +382,23 @@ DENtafel <-  data.frame(
   Anfang = c("6:00:00", "18:00:00", "22:00:00", "6:00:00"),
   Periodenlaenge = c(hours(12), hours(4), hours(8), hours(16))
 )
+#"Europe/Berlin"  
 
 #seq(Erfassungsdauern$AnfangDatum %>% first(),Erfassungsdauern$EndeDatum %>% first(),by="day")
 DENIntervalle <-
-  function( Anfangsdatum, Endedatum) {
+  function(Anfangsdatum, Endedatum) {
     DENtafel %>%
       crossing(Datum = seq(Anfangsdatum, Endedatum, by = "day") %>%
                  date()) %>%
       mutate(
-        IntervallAnf = paste(Datum, Anfang) %>% lubridate::as_datetime(tz = "Europe/Berlin"),
-        IntervallEnde = IntervallAnf + Periodenlaenge,
-        Intervall = IntervallAnf %--% IntervallEnde
-      )  %>%
-      mutate(Dauer = Intervall / dseconds(1)) %>% # Das gibt die reale Dauer heraus; unterscheidet sich also bei Zeitumstellung.
-      select(ZeitLabel,Datum, Intervall,Dauer)
+        IntervallAnf = paste(Datum, Anfang) %>% lubridate::as_datetime(
+          tz = #Sys.timezone(location = TRUE)),
+           "Europe/Berlin"),
+          IntervallEnde = IntervallAnf + Periodenlaenge,
+          Intervall = IntervallAnf %--% IntervallEnde
+        )  %>%
+          mutate(Dauer = Intervall / dseconds(1)) %>% # Das gibt die reale Dauer heraus; unterscheidet sich also bei Zeitumstellung.
+          select(ZeitLabel, Datum, Intervall, Dauer)
   }
 
 
