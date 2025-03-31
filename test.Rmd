@@ -1,0 +1,261 @@
+---
+title: "Präsentation zum Verkleiden"
+author: "Matthias"
+date: "`r Sys.Date()`"
+output: powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(flextable)
+```
+
+## R Markdown
+
+### englischer Text
+
+This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+## Ausgangsfragen
+
+-   Sind die Standorte der kommunalen Messstellen geeignet, um das bestehende Messnetz zu ergänzen?
+-   Welcher Einfluss haben der Fangradius und weitere Parameter auf die Erfassungsrate der komunalen Messstationen?
+-   Einlesen der CSV-Dateien Von den von Herrn Weise bereitgestellten Daten lese ich zunächst nur die mit von ihm präferierten Fangradien in R ein.
+
+# Einlesen der CSV-Dateien
+
+Von den von Herrn Weise bereitgestellten Daten lese ich zunächst nur die mit von ihm präferierten Fangradien in R ein.
+
+```{r einlesen, include=FALSE}
+# Pfad zum Datenordner
+data_path <- "data"
+#Daten mit von Herrn Weise präferierten Fangradien
+
+#Daten mit von Herrn Weise präferierten Fangradien
+
+# Liste aller CSV-Dateien im Datenordner
+csv_files <- function(path) {
+  list.files(path = path,
+             pattern = "*.csv",
+             full.names = TRUE)
+}
+
+# Funktion zum Einlesen einer einzelnen CSV-Datei
+read_csv_file <- function(file) {
+  col_names <- names(spec_delim(file, delim = ";")$cols)
+  # Define col_types dynamically
+  meine_Col_types <-
+    cols(!!!setNames(lapply(col_names, function(col) {
+      if (grepl("Nr", col) | grepl("Lfd", col)) {
+        col_number()
+      } else if (grepl("ts", col)|grepl("Zeit", col)) {
+        col_time(format = "%H:%M:%S")
+      } else {
+        col_guess()
+      }
+    }),
+    col_names))
+  read_delim(
+    file,
+    delim = ";",
+    escape_double = FALSE,
+    col_types = meine_Col_types,
+    #cols(StatNr = col_number(),Lfd = col_number(),`ts(anf)` = col_time(format = "%H:%M:%S"),`ts(end)` = col_time(format = "%H:%M:%S")),
+    trim_ws = TRUE,
+    locale = locale(encoding = 'ISO8859-1')#nötig, da sonst die Umlaute nicht gelesen werden können.
+  )
+}
+
+# Einlesen der CSV-Dateien mit präferierten Fangradien und zusammenführen in einen Dataframe
+meas_data <- function(pathlist) {
+    lapply(pathlist, read_csv_file) %>%
+    bind_rows() %>%
+    mutate(check = `0`, .keep = "unused") %>%
+    filter(check == 1)
+}
+
+
+praef_data <- csv_files(data_path) %>%
+  .[!str_detect(., "full")] %>%
+  meas_data(.) %>% 
+  mutate(StatNam=str_remove(StatNam," ooo"))
+
+full_data<-csv_files(data_path) %>%
+  .[str_detect(., "ansi")] %>%
+  meas_data(.) %>% 
+  mutate(LasMax=`LasMax(Mss)`,StatNam=str_remove(StatNam," ooo"),.keep="unused") %>% 
+  mutate(AbAn=if_else(AbAn=="v","Landung","Start"))
+```
+
+In diesen Daten habe ich dann noch die Zeitdaten besser für R verarbeitbar gemacht.
+
+```{r}
+zeitstempeln <- function(data_in) {
+  data_out <- data_in %>%
+    mutate(
+      AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(
+        AbAnDatum, AbAnZeit
+      )),tz="Europe/Berlin"),
+      tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
+        AbAnDatum, `ts(anf)`
+      )),tz="Europe/Berlin"),
+      tsEndDatetime = lubridate::as_datetime(dmy_hms(paste(
+        AbAnDatum, `ts(end)`
+      )),tz="Europe/Berlin"),
+      .keep = "unused"
+    ) %>%
+    mutate(DEN = case_when(
+      hour(tsAnfDatetime) %in% 6:17  ~ "D",
+      # Day: 6 AM to 6 PM
+      hour(tsAnfDatetime) %in% 18:21 ~ "E",
+      # Evening: 6 PM to 10 PM
+      TRUE ~ "N"                  # Night: 10 PM to 6 AM
+    ))
+  return(data_out)
+}
+
+praef_data<-zeitstempeln(praef_data)
+full_data<-zeitstempeln(full_data)
+
+praef_Fangradius<-praef_data %>% 
+  select(StatNam,StatNr,Fangradius) %>% 
+  unique()
+
+Stationsliste<-full_data$StatNam %>% unique()
+
+```
+
+# Betrachtete Messstationen
+
+Von den in Abb. \@ref(fig:MPKarte) dargestellten Messpunkten wurden die fünf DFLD Stationen `r Stationsliste` betrachtet.
+
+```{r MPKarte, fig.cap="Karte der Messpunkte", fig.width=6.7,fig.height=4}
+
+knitr::include_graphics("external_img/Messpunktkarte.png")
+
+```
+
+# nächte Seite
+
+Graphische Darstellung mit präferiertem Fangradius in Abb. \@ref(fig:Scatterplots1) und mit allen Fangradien in \@ref(Scatterplots1f).
+
+```{r Scatterplots1, fig.cap="Graphische Darstellung der Daten mit dem jeweils präferierten Fangradius.", fig.width=6.7,fig.height=4}
+
+praef_data %>% 
+  ggplot(aes(x=AbAnDatetime,y=SEL,color=factor(AbAn)))+
+  geom_point()+
+  facet_wrap(vars(StatNam)) +
+  labs(color = "An- oder Abflug")
+
+```
+
+# andere Graphen
+
+Hier erkläre ich den Graphen
+
+```{r Scatterplots1f, fig.cap="Graphische Darstellung der Daten nach Fangradius. Die Teilgraphen mit den von Herrn Weise präferierten Fangradien sind rot umrandet.", fig.width=6.7,fig.height=5.5}
+
+full_data %>%
+  filter(StatusNr == 0) %>%
+  ggplot(aes(x = AbAnDatetime, y = SEL, color = factor(AbAn))) +
+  geom_point() +
+  facet_grid(cols = vars(StatNam), rows = vars(Fangradius)) +
+  geom_rect(
+    data=praef_data,
+    fill = NA,
+    colour = "red",
+    xmin = -Inf,
+    xmax = Inf,
+    ymin = -Inf,
+    ymax = Inf
+  )+
+  labs(color = "An- oder Abflug")
+
+
+```
+
+# Formeln
+
+## Dauerschallpegel
+
+Der Dauerschalldruckpegel gemäß DIN 45643:2011 ist definiert als 
+$$
+L_{p,A,eq,T} = 10\cdot\lg \left(\frac{t_0}{T}\sum_{I=1}^{N} 10^{L_{p,A,E,i}/10\,\textrm{dB}}\right)\,\textrm{dB}
+$$
+
+mit
+
+$$
+L_{p,A,E,i}=10 \lg \left(\frac{1}{t_0}\int dt \frac{P_{A,i}(t)^2}{p_0^{\;2}}\right)\;(=\mathrm{SEL}).
+$$
+
+
+
+```{r Dauerschallpegel}
+
+t0=as.duration(1)
+
+dauerschallpegel <- function(SEL,T) {
+  10*log10(t0/T * sum(10^(SEL/10),na.rm = T))
+}
+
+```
+
+#  auch noch Tabellen
+
+Die sind auch sehr wichtig.
+
+```{r}
+praef_data %>% 
+  sample_n(5) %>% 
+  qflextable()
+
+
+```
+
+
+```{r}
+
+full_data %>%
+  filter(Fangradius == praef) %>%
+  mutate(MaxpegelIst0=if_else(LasMax==0,"ja","nein")) %>%
+  group_by(StatNam,DEN,MaxpegelIst0,StatusNr) %>% 
+  summarise(n=n()) %>%
+  pivot_wider(names_from=DEN,values_from=n) %>% 
+  write.csv2("Statusanzahl.csv",quote=FALSE,row.names = FALSE)
+  
+  
+  ggplot(aes(x = WTC, y = LasMax)) +
+  geom_boxplot() + 
+  facet_grid(cols =vars(StatNam), rows = vars(DEN))
+
+```
+```{r}
+full_data %>% 
+  filter(Fangradius == praef&StatusNr!=0) %>% 
+  ggplot(aes(x=Messschwelle,y=`LasMax`,color=DEN))+
+  geom_jitter()+
+  facet_grid(cols=vars(StatNam))
+
+ggsave("Status ungleich 0 LASmaxMess.png",dpi=300)
+  
+```
+
+
+```{r}
+
+full_data %>% 
+  filter(StatNam=="Frankfurt/Gallus") %>% 
+  filter(StatusNr==-62) %>% 
+  filter(Fangradius == praef) %>% 
+select(AbAnDatetime,tsVorbeiflug,CallSign)
+
+
+full_data %>% 
+  filter(CallSign=="DLH8KF")
+
+```
+
