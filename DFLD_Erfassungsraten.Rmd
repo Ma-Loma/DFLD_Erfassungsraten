@@ -212,7 +212,7 @@ meas_data <- function(pathlist) {
     lapply(pathlist, read_csv_file) %>%
     bind_rows() %>%
     mutate(check = `0`, .keep = "unused") %>%
-    filter(check == 1)
+    filter(check == 1)# nur diese Zeilen sind hier sinnvoll; ignorieren Rest
 }
 
 
