@@ -160,7 +160,7 @@ Der Code der Analyse und die verwendeten Eingangsdaten wird unter dem öffentlic
 # Ausgangsfragen
 
 - Sind die Standorte der kommunalen Messstellen geeignet, um das bestehende Messnetz zu ergänzen?
-- Welcher Einfluss haben der Fangradius und weitere Parameter auf die Erfassungsrate der komunalen Messstationen? 
+- Welcher Einfluss haben der Fangradius und weitere Parameter auf die Erfassungsrate der kommunalen Messstationen? 
 
 
 # Einlesen der CSV-Dateien
@@ -261,17 +261,20 @@ zeitstempeln <- function(data_in) {
   
   data_out <- data_out  %>%
     mutate(DEN = case_when(
+      is.na(tsVorbeiflug)~NA,
       hour(tsVorbeiflug) %in% 6:17  ~ "D",
       # Day: 6 AM to 6 PM
       hour(tsVorbeiflug) %in% 18:21 ~ "E",
       # Evening: 6 PM to 10 PM
-      TRUE ~ "N"                  # Night: 10 PM to 6 AM
+      hour(tsVorbeiflug) %in% 0:5|hour(tsVorbeiflug) %in% 22:23 ~ "N",
+      # Night: 10 PM to 6 AM
+      .default = NA
     ))
   
   return(data_out)
 }
 
-zeitstempeln(test)
+test2<-zeitstempeln(test)
 
 praef_data<-zeitstempeln(praef_data)
 full_data<-zeitstempeln(full_data)
@@ -281,7 +284,6 @@ praef_Fangradius<-praef_data %>%
   unique()
 
 Stationsliste<-full_data$StatNam %>% unique()
-
 ```
 
 
@@ -318,6 +320,7 @@ praef_data %>%
 
 full_data %>%
   filter(StatusNr == 0) %>%
+  #slice_sample(prop=0.1) %>% 
   ggplot(aes(x = AbAnDatetime, y = SEL, color = factor(AbAn))) +
   geom_point() +
   facet_grid(cols = vars(StatNam), rows = vars(Fangradius)) +
@@ -495,6 +498,24 @@ stat2<-praef_Fangradius %>%
   mutate(praef = Fangradius, .keep = "unused") %>%
   right_join(stat2)
 
+stat24<-full_data_erfD%>%
+  mutate(Gewichtsklasse=if_else(WTC=="H","heavy","nicht heavy",missing="nicht heavy")) %>% 
+  bind_rows(
+  full_data_erfD %>% mutate(Gewichtsklasse = "Alle Gewichtsklassen")
+) %>% 
+  mutate(hour=hour(tsVorbeiflug)) %>% 
+  group_by(StatNam, Fangradius,hour,Gewichtsklasse) %>%
+  summarise(
+    n1 = sum(StatusNr == 0),
+    n2 = n(),
+    Erfassungsquote = scales::percent(n1 / n2),
+  )
+
+stat24<-praef_Fangradius %>%
+  mutate(praef = Fangradius, .keep = "unused") %>%
+  right_join(stat24) %>% 
+  filter(Fangradius==praef)
+
 
 ```
 
@@ -516,7 +537,7 @@ stat2 %>%
 
 ## Erfasste Flüge und Erfassungsquoten
 
-In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert. Hier ist zu erkennen, dass in Frankfurt/Gallus bis 3500 m fast keine Heavies vorbeifliege - der Grund liegt darin, dass die Abflugroute "07 Nord kurz" standardmäßig für Heavies gesperrt ist.
 
 ```{r n1n2, fig.cap="n1 und n2 nach Gewichtsklasse.", fig.width=6.7,fig.height=9}
 
@@ -525,12 +546,13 @@ stat2 %>%
   ggplot(aes(x=Fangradius,y=Wert,color=DEN))+
   geom_vline(aes(xintercept = praef), color = "black") +
   geom_line()+
+  geom_point()+
   facet_grid(cols=vars(StatNam),rows=vars(Gewichtsklasse,`Größe`),scales = "free") +
   theme(axis.text.x = element_text(angle = 90,vjust=0.5))
 
 ```
 
-In Abb. \@ref(fig:Leq) sind die Erfassungsquoten dargestellt.  Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
+In Abb. \@ref(fig:Erfassungsquote) sind die Erfassungsquoten dargestellt.  Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert.
 
 ```{r Erfassungsquote, fig.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse.", fig.width=6.7,fig.height=5.5}
 
@@ -544,13 +566,31 @@ stat2 %>%
 
 ```
 
+
+In Abb. \@ref(fig:Erfassungsquote24h) sind für die von Herrn Weise präferierten Fangradien die stündlichen Erfassungsquoten als Funktion der Stunde des Tages dargestellt. Wie zu erwarten, 
+
+- liegen die Erfassungsquoten für Heavies in der Regel über der Quote der anderen Flugzeuge
+- tendenziell ist in den Tagesrandstunden die Erfassungsquote höher als tagsüber. Dies war aufgrund des vermutlich tagsüber höheren Hintergrundpegels zu erwarten.
+
+Eine Ausnahme bildet die Morgenrandstunde in Wiesbaden mit einer niedrigeren Erfassungsquote.
+
+```{r Erfassungsquote24h, fig.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse.", fig.width=6.7,fig.height=5.5}
+
+stat24 %>% 
+  ggplot(aes(x=hour,y=n1/n2,color=Gewichtsklasse))+
+  geom_line()+
+  geom_point()+
+  facet_grid(cols = vars(StatNam))+#  theme(axis.text.x = element_text(angle = 90,vjust=0.5))
+  xlab("Stunde des Tages")
+```
+
 \newpage
 
 ## Gleichzeitige Ereignisse
 
 Offenbar werden im betrachteten Datensatz Fluglärmereignisse aufgelistet, die gleichzeitig stattfinden. Die Zahlen werden in Tab. \@ref(tab:AnzahlGleichzeitig) dargestellt.
 
-```{r Anzahl_gleichzeitig, tab.id = "AnzahlGleichzeitig", tab.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse. Dabei steht erk für akustisch erkannt, unerk für akustisch nicht erkannt, gleichz für gleichzeitige Ereignise und einz für einzelne, nicht gleichzeitige Ereignisse."}
+```{r Anzahl_gleichzeitig, tab.id = "AnzahlGleichzeitig", tab.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse. Dabei steht erk für akustisch erkannt, unerk für akustisch nicht erkannt, gleichz für gleichzeitige Ereignisse und einz für einzelne, nicht gleichzeitige Ereignisse."}
 
 praef_data<-praef_data %>%
   mutate(eventID=paste(StatNr,Fangradius,Lfd,FlugNr,AbAnDatetime,sep="_"))
