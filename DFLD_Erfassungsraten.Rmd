@@ -172,8 +172,6 @@ Von den von Herrn Weise bereitgestellten Daten lese ich zunächst nur die mit vo
 data_path <- "data"
 #Daten mit von Herrn Weise präferierten Fangradien
 
-#Daten mit von Herrn Weise präferierten Fangradien
-
 # Liste aller CSV-Dateien im Datenordner
 csv_files <- function(path) {
   list.files(path = path,
@@ -181,21 +179,24 @@ csv_files <- function(path) {
              full.names = TRUE)
 }
 
+
 # Funktion zum Einlesen einer einzelnen CSV-Datei
 read_csv_file <- function(file) {
   col_names <- names(spec_delim(file, delim = ";")$cols)
+  
   # Define col_types dynamically
   meine_Col_types <-
     cols(!!!setNames(lapply(col_names, function(col) {
       if (grepl("Nr", col) | grepl("Lfd", col)) {
         col_number()
-      } else if (grepl("ts", col)|grepl("Zeit", col)) {
+      } else if (grepl("ts", col) | grepl("Zeit", col)) {
         col_time(format = "%H:%M:%S")
       } else {
         col_guess()
       }
     }),
     col_names))
+  
   read_delim(
     file,
     delim = ";",
@@ -203,7 +204,13 @@ read_csv_file <- function(file) {
     col_types = meine_Col_types,
     #cols(StatNr = col_number(),Lfd = col_number(),`ts(anf)` = col_time(format = "%H:%M:%S"),`ts(end)` = col_time(format = "%H:%M:%S")),
     trim_ws = TRUE,
-    locale = locale(encoding = 'ISO8859-1')#nötig, da sonst die Umlaute nicht gelesen werden können.
+    locale = locale(
+    #  date_names = "de",
+    #  decimal_mark = ",",
+    #  grouping_mark = ".",
+     # tz = "Europe/Berlin",
+      encoding = 'ISO8859-1'#nötig, da sonst die Umlaute nicht gelesen werden können.
+    )
   )
 }
 
@@ -232,25 +239,29 @@ In diesen Daten habe ich dann noch die Zeitdaten besser für R verarbeitbar gema
 
 ```{r}
 
-test<-full_data %>%
-  select(contains(c("Datum","Zeit", "ts"))) %>%
-  .[1:4,]
+# test<-full_data %>%
+#   select(contains(c("Datum","Zeit", "ts"))) %>%
+#   .[1:4,]
+# 
+# 
+# test %>%
+#   mutate(AbAnDatetime =
+#            lubridate::as_datetime(dmy_hms(paste(AbAnDatum, `ts(anf)`))))
 
 zeitstempeln <- function(data_in) {
   data_out <- data_in %>%
     mutate(
       AbAnDatetime = lubridate::as_datetime(dmy_hms(paste(
         AbAnDatum, AbAnZeit
-      )), tz = "Europe/Berlin"),
+      ))),
       tsAnfDatetime = lubridate::as_datetime(dmy_hms(paste(
         AbAnDatum, `ts(anf)`
-      )), tz = "Europe/Berlin"),
+      ))),
       tsEndDatetime = lubridate::as_datetime(dmy_hms(paste(
         AbAnDatum, `ts(end)`
-      )), tz = "Europe/Berlin"),
+      ))),
       tsVorbeiflug = tsAnfDatetime#,      .keep = "unused"
     )
-  if_else
   if ("ZeitSll" %in% colnames(data_out)) {
     data_out <- data_out %>%
       mutate(tsVorbeiflug =
@@ -258,6 +269,12 @@ zeitstempeln <- function(data_in) {
                  AbAnDatum, ZeitSll
                ))))
   }
+  
+  data_out<-
+    data_out %>% 
+     mutate(across(
+    contains("Datetime"),~force_tz(.x,tzone="Europe/Berlin")
+  ))
   
   data_out <- data_out  %>%
     mutate(DEN = case_when(
@@ -273,8 +290,6 @@ zeitstempeln <- function(data_in) {
   
   return(data_out)
 }
-
-test2<-zeitstempeln(test)
 
 praef_data<-zeitstempeln(praef_data)
 full_data<-zeitstempeln(full_data)
@@ -537,7 +552,7 @@ stat2 %>%
 
 ## Erfasste Flüge und Erfassungsquoten
 
-In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert. Hier ist zu erkennen, dass in Frankfurt/Gallus bis 3500 m fast keine Heavies vorbeifliege - der Grund liegt darin, dass die Abflugroute "07 Nord kurz" standardmäßig für Heavies gesperrt ist.
+In Abb. \@ref(fig:n1n2) werden n1 und n2 dargestellt. Der von Herrn Weise präferierte Fangradius ist jeweils mit einer senkrechten Linie markiert. Hier ist zu erkennen, dass in Frankfurt/Gallus bis 3500 m fast keine Heavies vorbeifliegen - der Grund liegt darin, dass die Abflugroute "07 Nord kurz" standardmäßig für Heavies gesperrt ist.
 
 ```{r n1n2, fig.cap="n1 und n2 nach Gewichtsklasse.", fig.width=6.7,fig.height=9}
 
@@ -574,7 +589,8 @@ In Abb. \@ref(fig:Erfassungsquote24h) sind für die von Herrn Weise präferierte
 
 Eine Ausnahme bildet die Morgenrandstunde in Wiesbaden mit einer niedrigeren Erfassungsquote.
 
-```{r Erfassungsquote24h, fig.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse.", fig.width=6.7,fig.height=5.5}
+
+```{r Erfassungsquote24h, fig.cap="Graphische Darstellung der Erfassungsquote nach Gewichtsklasse und als Funktion der Tagesstunde.", fig.width=6.7,fig.height=4}
 
 stat24 %>% 
   ggplot(aes(x=hour,y=n1/n2,color=Gewichtsklasse))+
@@ -583,6 +599,31 @@ stat24 %>%
   facet_grid(cols = vars(StatNam))+#  theme(axis.text.x = element_text(angle = 90,vjust=0.5))
   xlab("Stunde des Tages")
 ```
+
+
+
+Zur Erklärung der im Tagesverlauf veränderlichen Erfassungsquote kann auch die Statistik der Messschwellen in Abb. \@ref(fig:Messschwellenverlauf) herangezogen werden.
+
+
+```{r Messchwellenverlauf, fig.cap="Graphische Darstellung der Messschwelle als Funktion der Tagesstunde.", fig.width=6.7,fig.height=4}
+
+quantWerte<-c(0.05,0.25,0.5,0.75,0.95)
+
+full_data %>% 
+  mutate(hour=hour(tsVorbeiflug)) %>% 
+  group_by(StatNam,hour) %>% 
+  summarise(Wert = quantile(Messschwelle, quantWerte), q = quantWerte) %>% 
+  ungroup() %>% 
+  #pivot_wider(names_from = q,values_from = Wert,names_prefix="Quant")
+    ggplot(aes(x=hour,y=Wert,color=factor(q)))+
+  geom_line()+
+  geom_point()+
+  facet_grid(cols = vars(StatNam))+
+  ylab("Messschwelle [dB(A)]")+
+  xlab("Stunde des Tages")+ 
+  labs(color = "Quantilenwert")
+```
+
 
 \newpage
 
