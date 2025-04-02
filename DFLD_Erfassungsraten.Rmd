@@ -607,12 +607,12 @@ stat24 %>%
   xlab("Stunde des Tages")
 ```
 
-
+## Messschwellen
 
 Zur Erklärung der im Tagesverlauf veränderlichen Erfassungsquote kann auch die Statistik der Messschwellen in Abb. \@ref(fig:Messschwellenverlauf) herangezogen werden.
 
 
-```{r Messchwellenverlauf, fig.cap="Graphische Darstellung der Messschwelle als Funktion der Tagesstunde.", fig.width=6.7,fig.height=4}
+```{r Messschwellenverlauf, fig.cap="Graphische Darstellung der Messschwelle als Funktion der Tagesstunde.", fig.width=6.7,fig.height=4}
 
 quantWerte<-c(0.05,0.25,0.5,0.75,0.95)
 
@@ -638,41 +638,41 @@ full_praef<-praef_Fangradius %>%
   right_join(full_data) %>% 
   filter(praef==Fangradius)
 
-full_praef %>% 
+p<-full_praef %>% 
   filter(StatusNr==0) %>% 
   ggplot(aes(x=Messschwelle,y=`LasMax(Calc)`,color=DEN))+
   geom_jitter(shape=".")+
   facet_grid(
     cols=vars(StatNam)
-  ) %>% 
-  ggsave("Status gleich 0 LASmax(Calc).png",dpi=300)
+  )
+ggsave("Status gleich 0 LASmax(Calc).png",plot=p,dpi=300)
 
-full_praef %>% 
+p<-full_praef %>% 
   filter(StatusNr!=0) %>% 
   ggplot(aes(x=Messschwelle,y=`LasMax(Calc)`,color=DEN))+
   geom_jitter(shape=".")+
   facet_grid(
     cols=vars(StatNam)
-  ) %>% 
-  ggsave("Status ungleich 0 LASmax(Calc).png",dpi=300)
+  )
+ggsave("Status ungleich 0 LASmax(Calc).png",plot=p,dpi=300)
 
-full_praef %>% 
+p<-full_praef %>% 
   filter(StatusNr!=0) %>% 
   ggplot(aes(x=Messschwelle,y=LasMax,color=DEN))+
   geom_jitter(shape=".")+
   facet_grid(
     cols=vars(StatNam)
-  ) %>% 
-  ggsave("Status ungleich 0 LASmax(Mess).png",dpi=300)
+  )
+ggsave("Status ungleich 0 LASmax(Mess).png",plot=p,dpi=300)
 
-full_praef %>% 
+p<-full_praef %>% 
   filter(StatusNr==0) %>% 
   ggplot(aes(x=Messschwelle,y=LasMax,color=DEN))+
   geom_jitter(shape=".")+
   facet_grid(
     cols=vars(StatNam)
-  ) %>% 
-  ggsave("Status gleich 0 LASmax(Mess).png",dpi=300)
+  )
+ggsave("Status gleich 0 LASmax(Mess).png",plot=p,dpi=300)
 
 full_praef %>%
   group_by(StatNam, StatusNr, DEN) %>%
