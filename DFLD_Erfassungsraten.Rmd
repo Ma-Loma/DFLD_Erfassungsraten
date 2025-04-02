@@ -513,6 +513,13 @@ stat2<-praef_Fangradius %>%
   mutate(praef = Fangradius, .keep = "unused") %>%
   right_join(stat2)
 
+stat2 %>%
+  write.csv2(
+    paste0(data_path, "/out/Erfassungsstatistik_zusammengefasst.csv"),
+    row.names = F,
+    quote = F
+  )
+
 stat24<-full_data_erfD%>%
   mutate(Gewichtsklasse=if_else(WTC=="H","heavy","nicht heavy",missing="nicht heavy")) %>% 
   bind_rows(
@@ -622,6 +629,66 @@ full_data %>%
   ylab("Messschwelle [dB(A)]")+
   xlab("Stunde des Tages")+ 
   labs(color = "Quantilenwert")
+
+# Graphen zum Ansehen, nicht für den Bericht
+
+
+full_praef<-praef_Fangradius %>%
+  mutate(praef = Fangradius, .keep = "unused") %>%
+  right_join(full_data) %>% 
+  filter(praef==Fangradius)
+
+full_praef %>% 
+  filter(StatusNr==0) %>% 
+  ggplot(aes(x=Messschwelle,y=`LasMax(Calc)`,color=DEN))+
+  geom_jitter(shape=".")+
+  facet_grid(
+    cols=vars(StatNam)
+  ) %>% 
+  ggsave("Status gleich 0 LASmax(Calc).png",dpi=300)
+
+full_praef %>% 
+  filter(StatusNr!=0) %>% 
+  ggplot(aes(x=Messschwelle,y=`LasMax(Calc)`,color=DEN))+
+  geom_jitter(shape=".")+
+  facet_grid(
+    cols=vars(StatNam)
+  ) %>% 
+  ggsave("Status ungleich 0 LASmax(Calc).png",dpi=300)
+
+full_praef %>% 
+  filter(StatusNr!=0) %>% 
+  ggplot(aes(x=Messschwelle,y=LasMax,color=DEN))+
+  geom_jitter(shape=".")+
+  facet_grid(
+    cols=vars(StatNam)
+  ) %>% 
+  ggsave("Status ungleich 0 LASmax(Mess).png",dpi=300)
+
+full_praef %>% 
+  filter(StatusNr==0) %>% 
+  ggplot(aes(x=Messschwelle,y=LasMax,color=DEN))+
+  geom_jitter(shape=".")+
+  facet_grid(
+    cols=vars(StatNam)
+  ) %>% 
+  ggsave("Status gleich 0 LASmax(Mess).png",dpi=300)
+
+full_praef %>%
+  group_by(StatNam, StatusNr, DEN) %>%
+  summarise(
+    n = n(),
+    arithMSEL = mean(SEL),
+    arithMLasMax = mean(LasMax),
+    arithMLasMaxCalc = mean(`LasMax(Calc)`)
+  ) %>%
+  write.csv2(
+    paste0(data_path, "/out/Statusstatistik.csv"),
+    row.names = F,
+    quote = F
+  )
+
+
 ```
 
 
